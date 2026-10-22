@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Controllers and Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
 builder.Services.AddSwaggerGen(options =>
 {
