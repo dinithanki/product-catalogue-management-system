@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 
 namespace backend.Repositories;
 
-public sealed class AuthRepository(SqlConnection connection)
+public sealed class AuthRepository(SqlConnection connection) : IAuthRepository
 {
     public async Task<LoginUser?> GetUserByUsernameAsync(string username)
     {

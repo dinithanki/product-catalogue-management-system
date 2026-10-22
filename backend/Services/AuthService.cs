@@ -12,7 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace backend.Services;
 
 public sealed class AuthService(
-    AuthRepository authRepository,
+    IAuthRepository authRepository,
     IConfiguration configuration,
     IPasswordHasher<LoginUser> passwordHasher)
 {
