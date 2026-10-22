@@ -14,7 +14,7 @@ namespace backend.Services;
 public sealed class AuthService(
     IAuthRepository authRepository,
     IConfiguration configuration,
-    IPasswordHasher<LoginUser> passwordHasher)
+    IPasswordHasher<LoginUser> passwordHasher) : IAuthService
 {
     public async Task<LoginResponse?> LoginAsync(
         string username,
