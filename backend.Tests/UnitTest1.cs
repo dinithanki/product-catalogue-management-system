@@ -36,19 +36,20 @@ public class AuthServiceTests
             _passwordHasherMock.Object);
     }
 
+    private static LoginUser CreateActiveUser() => new()
+    {
+        UserId = 1,
+        Username = "testuser",
+        PasswordHash = "fake-password-hash",
+        Role = "User",
+        IsActive = true,
+        MustChangePassword = false
+    };
+
     [Fact]
     public async Task LoginAsync_WithValidCredentials_ReturnsLoginResponse()
     {
-        // Arrange: create a test user.
-        var user = new LoginUser
-        {
-            UserId = 1,
-            Username = "testuser",
-            PasswordHash = "fake-password-hash",
-            Role = "User",
-            IsActive = true,
-            MustChangePassword = false
-        };
+        var user = CreateActiveUser();
 
         _repositoryMock
             .Setup(r => r.GetUserByUsernameAsync("testuser"))
@@ -56,9 +57,7 @@ public class AuthServiceTests
 
         _passwordHasherMock
             .Setup(h => h.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                "CorrectPassword123!"))
+                user, user.PasswordHash, "CorrectPassword123!"))
             .Returns(PasswordVerificationResult.Success);
 
         _repositoryMock
@@ -69,12 +68,9 @@ public class AuthServiceTests
                 It.IsAny<DateTime>()))
             .ReturnsAsync(0);
 
-        // Act: call the actual login service.
-        LoginResponse? result = await _authService.LoginAsync(
-            "testuser",
-            "CorrectPassword123!");
+        var result = await _authService.LoginAsync(
+            "testuser", "CorrectPassword123!");
 
-        // Assert: verify the expected result.
         Assert.NotNull(result);
         Assert.Equal("testuser", result.Username);
         Assert.Equal(1, result.UserId);
@@ -83,238 +79,302 @@ public class AuthServiceTests
         Assert.False(string.IsNullOrWhiteSpace(result.AccessToken));
         Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
     }
-    
-[Fact]
-public async Task LoginAsync_WithIncorrectPassword_ReturnsNull()
-{
-    // Arrange
-    var user = new LoginUser
+
+    [Fact]
+    public async Task LoginAsync_WithIncorrectPassword_ReturnsNull()
     {
-        UserId = 1,
-        Username = "testuser",
-        PasswordHash = "fake-password-hash",
-        Role = "User",
-        IsActive = true,
-        MustChangePassword = false
-    };
+        var user = CreateActiveUser();
 
-    _repositoryMock
-        .Setup(r => r.GetUserByUsernameAsync("testuser"))
-        .ReturnsAsync(user);
+        _repositoryMock
+            .Setup(r => r.GetUserByUsernameAsync("testuser"))
+            .ReturnsAsync(user);
 
-    _passwordHasherMock
-        .Setup(h => h.VerifyHashedPassword(
-            user,
-            user.PasswordHash,
-            "WrongPassword123!"))
-        .Returns(PasswordVerificationResult.Failed);
+        _passwordHasherMock
+            .Setup(h => h.VerifyHashedPassword(
+                user, user.PasswordHash, "WrongPassword123!"))
+            .Returns(PasswordVerificationResult.Failed);
 
-    // Act
-    var result = await _authService.LoginAsync(
-        "testuser",
-        "WrongPassword123!");
+        var result = await _authService.LoginAsync(
+            "testuser", "WrongPassword123!");
 
-    // Assert
-    Assert.Null(result);
+        Assert.Null(result);
 
-    _repositoryMock.Verify(
-        r => r.CreateRefreshTokenAsync(
-            It.IsAny<int>(),
-            It.IsAny<string>(),
-            It.IsAny<Guid>(),
-            It.IsAny<DateTime>()),
-        Times.Never);
-}
+        _repositoryMock.Verify(
+            r => r.CreateRefreshTokenAsync(
+                It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<Guid>(), It.IsAny<DateTime>()),
+            Times.Never);
+    }
 
-[Fact]
-public async Task LoginAsync_WithInactiveUser_ReturnsNull()
-{
-    // Arrange
-    var user = new LoginUser
+    [Fact]
+    public async Task LoginAsync_WithInactiveUser_ReturnsNull()
     {
-        UserId = 2,
-        Username = "inactiveuser",
-        PasswordHash = "fake-password-hash",
-        Role = "User",
-        IsActive = false,
-        MustChangePassword = false
-    };
+        var user = CreateActiveUser();
+        user.IsActive = false;
 
-    _repositoryMock
-        .Setup(r => r.GetUserByUsernameAsync("inactiveuser"))
-        .ReturnsAsync(user);
+        _repositoryMock
+            .Setup(r => r.GetUserByUsernameAsync("testuser"))
+            .ReturnsAsync(user);
 
-    // Act
-    var result = await _authService.LoginAsync(
-        "inactiveuser",
-        "CorrectPassword123!");
+        var result = await _authService.LoginAsync(
+            "testuser", "CorrectPassword123!");
 
-    // Assert
-    Assert.Null(result);
+        Assert.Null(result);
 
-    _passwordHasherMock.Verify(
-        h => h.VerifyHashedPassword(
-            It.IsAny<LoginUser>(),
-            It.IsAny<string>(),
-            It.IsAny<string>()),
-        Times.Never);
-}
+        _passwordHasherMock.Verify(
+            h => h.VerifyHashedPassword(
+                It.IsAny<LoginUser>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Never);
+    }
 
-[Fact]
-public async Task ChangePasswordAsync_WithCorrectCurrentPassword_ReturnsTrue()
-{
-    // Arrange
-    var user = new LoginUser
+    [Fact]
+    public async Task ChangePasswordAsync_WithCorrectCurrentPassword_ReturnsTrue()
     {
-        UserId = 1,
-        Username = "testuser",
-        PasswordHash = "old-hash",
-        Role = "User",
-        IsActive = true,
-        MustChangePassword = true
-    };
+        var user = CreateActiveUser();
+        user.PasswordHash = "old-hash";
+        user.MustChangePassword = true;
 
-    _repositoryMock
-        .Setup(r => r.GetUserByIdAsync(1))
-        .ReturnsAsync(user);
+        _repositoryMock
+            .Setup(r => r.GetUserByIdAsync(1))
+            .ReturnsAsync(user);
 
-    _passwordHasherMock
-        .Setup(h => h.VerifyHashedPassword(
-            user, "old-hash", "OldPassword123!"))
-        .Returns(PasswordVerificationResult.Success);
+        _passwordHasherMock
+            .Setup(h => h.VerifyHashedPassword(
+                user, "old-hash", "OldPassword123!"))
+            .Returns(PasswordVerificationResult.Success);
 
-    _passwordHasherMock
-        .Setup(h => h.HashPassword(user, "NewPassword123!"))
-        .Returns("new-hash");
+        _passwordHasherMock
+            .Setup(h => h.HashPassword(user, "NewPassword123!"))
+            .Returns("new-hash");
 
-    _repositoryMock
-        .Setup(r => r.ChangePasswordAsync(1, "new-hash"))
-        .ReturnsAsync(1);
+        _repositoryMock
+            .Setup(r => r.ChangePasswordAsync(1, "new-hash"))
+            .ReturnsAsync(1);
 
-    // Act
-    var result = await _authService.ChangePasswordAsync(
-        1, "OldPassword123!", "NewPassword123!");
+        var result = await _authService.ChangePasswordAsync(
+            1, "OldPassword123!", "NewPassword123!");
 
-    // Assert
-    Assert.True(result);
+        Assert.True(result);
 
-    _passwordHasherMock.Verify(
-        h => h.HashPassword(user, "NewPassword123!"),
-        Times.Once);
+        _passwordHasherMock.Verify(
+            h => h.HashPassword(user, "NewPassword123!"),
+            Times.Once);
 
-    _repositoryMock.Verify(
-        r => r.ChangePasswordAsync(1, "new-hash"),
-        Times.Once);
-}
+        _repositoryMock.Verify(
+            r => r.ChangePasswordAsync(1, "new-hash"),
+            Times.Once);
+    }
 
-[Fact]
-public async Task ChangePasswordAsync_WithIncorrectCurrentPassword_ReturnsFalse()
-{
-    // Arrange
-    var user = new LoginUser
+    [Fact]
+    public async Task ChangePasswordAsync_WithIncorrectCurrentPassword_ReturnsFalse()
     {
-        UserId = 1,
-        Username = "testuser",
-        PasswordHash = "old-hash",
-        Role = "User",
-        IsActive = true
-    };
+        var user = CreateActiveUser();
+        user.PasswordHash = "old-hash";
 
-    _repositoryMock
-        .Setup(r => r.GetUserByIdAsync(1))
-        .ReturnsAsync(user);
+        _repositoryMock
+            .Setup(r => r.GetUserByIdAsync(1))
+            .ReturnsAsync(user);
 
-    _passwordHasherMock
-        .Setup(h => h.VerifyHashedPassword(
-            user, "old-hash", "WrongPassword123!"))
-        .Returns(PasswordVerificationResult.Failed);
+        _passwordHasherMock
+            .Setup(h => h.VerifyHashedPassword(
+                user, "old-hash", "WrongPassword123!"))
+            .Returns(PasswordVerificationResult.Failed);
 
-    // Act
-    var result = await _authService.ChangePasswordAsync(
-        1, "WrongPassword123!", "NewPassword123!");
+        var result = await _authService.ChangePasswordAsync(
+            1, "WrongPassword123!", "NewPassword123!");
 
-    // Assert
-    Assert.False(result);
+        Assert.False(result);
 
-    _passwordHasherMock.Verify(
-        h => h.HashPassword(
-            It.IsAny<LoginUser>(),
-            It.IsAny<string>()),
-        Times.Never);
+        _passwordHasherMock.Verify(
+            h => h.HashPassword(
+                It.IsAny<LoginUser>(), It.IsAny<string>()),
+            Times.Never);
 
-    _repositoryMock.Verify(
-        r => r.ChangePasswordAsync(
-            It.IsAny<int>(),
-            It.IsAny<string>()),
-        Times.Never);
-}
+        _repositoryMock.Verify(
+            r => r.ChangePasswordAsync(
+                It.IsAny<int>(), It.IsAny<string>()),
+            Times.Never);
+    }
 
-[Fact]
-public async Task ChangePasswordAsync_WithInactiveUser_ReturnsFalse()
-{
-    // Arrange
-    var user = new LoginUser
+    [Fact]
+    public async Task ChangePasswordAsync_WithInactiveUser_ReturnsFalse()
     {
-        UserId = 1,
-        Username = "testuser",
-        PasswordHash = "old-hash",
-        Role = "User",
-        IsActive = false
-    };
+        var user = CreateActiveUser();
+        user.IsActive = false;
 
-    _repositoryMock
-        .Setup(r => r.GetUserByIdAsync(1))
-        .ReturnsAsync(user);
+        _repositoryMock
+            .Setup(r => r.GetUserByIdAsync(1))
+            .ReturnsAsync(user);
 
-    // Act
-    var result = await _authService.ChangePasswordAsync(
-        1, "OldPassword123!", "NewPassword123!");
+        var result = await _authService.ChangePasswordAsync(
+            1, "OldPassword123!", "NewPassword123!");
 
-    // Assert
-    Assert.False(result);
+        Assert.False(result);
+    }
 
-    _passwordHasherMock.Verify(
-        h => h.VerifyHashedPassword(
-            It.IsAny<LoginUser>(),
-            It.IsAny<string>(),
-            It.IsAny<string>()),
-        Times.Never);
-}
-
-[Fact]
-public async Task ChangePasswordAsync_WithSamePassword_ThrowsArgumentException()
-{
-    // Arrange
-    var user = new LoginUser
+    [Fact]
+    public async Task ChangePasswordAsync_WithSamePassword_ThrowsArgumentException()
     {
-        UserId = 1,
-        Username = "testuser",
-        PasswordHash = "old-hash",
-        Role = "User",
-        IsActive = true
-    };
+        var user = CreateActiveUser();
+        user.PasswordHash = "old-hash";
 
-    _repositoryMock
-        .Setup(r => r.GetUserByIdAsync(1))
-        .ReturnsAsync(user);
+        _repositoryMock
+            .Setup(r => r.GetUserByIdAsync(1))
+            .ReturnsAsync(user);
 
-    _passwordHasherMock
-        .Setup(h => h.VerifyHashedPassword(
-            user, "old-hash", "SamePassword123!"))
-        .Returns(PasswordVerificationResult.Success);
+        _passwordHasherMock
+            .Setup(h => h.VerifyHashedPassword(
+                user, "old-hash", "SamePassword123!"))
+            .Returns(PasswordVerificationResult.Success);
 
-    // Act and Assert
-    await Assert.ThrowsAsync<ArgumentException>(() =>
-        _authService.ChangePasswordAsync(
-            1,
-            "SamePassword123!",
-            "SamePassword123!"));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _authService.ChangePasswordAsync(
+                1, "SamePassword123!", "SamePassword123!"));
 
-    _repositoryMock.Verify(
-        r => r.ChangePasswordAsync(
-            It.IsAny<int>(),
-            It.IsAny<string>()),
-        Times.Never);
-}
+        _repositoryMock.Verify(
+            r => r.ChangePasswordAsync(
+                It.IsAny<int>(), It.IsAny<string>()),
+            Times.Never);
+    }
 
+    [Fact]
+    public async Task RefreshTokenAsync_WithInvalidToken_ReturnsNull()
+    {
+        _repositoryMock
+            .Setup(r => r.RotateRefreshTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(new RefreshTokenRotationResult(1, null, null));
+
+        var result = await _authService.RefreshTokenAsync(
+            "invalid-refresh-token");
+
+        Assert.Null(result);
+
+        _repositoryMock.Verify(
+            r => r.GetUserByIdAsync(It.IsAny<int>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_WithValidToken_ReturnsNewTokens()
+    {
+        var user = CreateActiveUser();
+
+        _repositoryMock
+            .Setup(r => r.RotateRefreshTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(new RefreshTokenRotationResult(
+                0, 1, Guid.NewGuid()));
+
+        _repositoryMock
+            .Setup(r => r.GetUserByIdAsync(1))
+            .ReturnsAsync(user);
+
+        var result = await _authService.RefreshTokenAsync(
+            "valid-refresh-token");
+
+        Assert.NotNull(result);
+        Assert.Equal(1, result.UserId);
+        Assert.False(string.IsNullOrWhiteSpace(result.AccessToken));
+        Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
+        Assert.NotEqual("valid-refresh-token", result.RefreshToken);
+
+        _repositoryMock.Verify(
+            r => r.RotateRefreshTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTime>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_WithInactiveUser_ReturnsNull()
+    {
+        var user = CreateActiveUser();
+        user.IsActive = false;
+
+        _repositoryMock
+            .Setup(r => r.RotateRefreshTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(new RefreshTokenRotationResult(
+                0, 1, Guid.NewGuid()));
+
+        _repositoryMock
+            .Setup(r => r.GetUserByIdAsync(1))
+            .ReturnsAsync(user);
+
+        var result = await _authService.RefreshTokenAsync(
+            "valid-refresh-token");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_WithValidToken_ReturnsTrue()
+    {
+        _repositoryMock
+            .Setup(r => r.RevokeRefreshTokenFamilyAsync(
+                It.IsAny<string>()))
+            .ReturnsAsync(0);
+
+        var result = await _authService.LogoutAsync(
+            "valid-refresh-token");
+
+        Assert.True(result);
+
+        _repositoryMock.Verify(
+            r => r.RevokeRefreshTokenFamilyAsync(
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_WhenRevocationFails_ReturnsFalse()
+    {
+        _repositoryMock
+            .Setup(r => r.RevokeRefreshTokenFamilyAsync(
+                It.IsAny<string>()))
+            .ReturnsAsync(1);
+
+        var result = await _authService.LogoutAsync(
+            "invalid-refresh-token");
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_WithEmptyToken_ReturnsNull()
+    {
+        var result = await _authService.RefreshTokenAsync("");
+
+        Assert.Null(result);
+
+        _repositoryMock.Verify(
+            r => r.RotateRefreshTokenAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTime>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_WithEmptyToken_ReturnsFalse()
+    {
+        var result = await _authService.LogoutAsync("");
+
+        Assert.False(result);
+
+        _repositoryMock.Verify(
+            r => r.RevokeRefreshTokenFamilyAsync(
+                It.IsAny<string>()),
+            Times.Never);
+    }
 }
