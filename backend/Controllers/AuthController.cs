@@ -31,6 +31,47 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh(
+        [FromBody] RefreshTokenRequest request)
+    {
+        var result = await authService.RefreshTokenAsync(
+            request.RefreshToken);
+
+        if (result is null)
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid, expired, or revoked refresh token."
+            });
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout(
+        [FromBody] RefreshTokenRequest request)
+    {
+        var revoked = await authService.LogoutAsync(
+            request.RefreshToken);
+
+        if (!revoked)
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid or unavailable refresh token."
+            });
+        }
+
+        return Ok(new
+        {
+            message = "Logged out successfully."
+        });
+    }
+
     [HttpPost("change-password")]
     [Authorize]
     public async Task<IActionResult> ChangePassword(

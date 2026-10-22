@@ -6,9 +6,11 @@ using Microsoft.Data.SqlClient;
 
 namespace backend.Repositories;
 
-public sealed class AuthRepository(SqlConnection connection) : IAuthRepository
+public sealed class AuthRepository(SqlConnection connection)
+    : IAuthRepository
 {
-    public async Task<LoginUser?> GetUserByUsernameAsync(string username)
+    public async Task<LoginUser?> GetUserByUsernameAsync(
+        string username)
     {
         var parameters = new DynamicParameters();
 
@@ -20,6 +22,18 @@ public sealed class AuthRepository(SqlConnection connection) : IAuthRepository
 
         return await connection.QuerySingleOrDefaultAsync<LoginUser>(
             "dbo.usp_Users_GetByUsername",
+            parameters,
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<LoginUser?> GetUserByIdAsync(int userId)
+    {
+        var parameters = new DynamicParameters();
+
+        parameters.Add("@UserId", userId, DbType.Int32);
+
+        return await connection.QuerySingleOrDefaultAsync<LoginUser>(
+            "dbo.usp_Users_GetById",
             parameters,
             commandType: CommandType.StoredProcedure);
     }
@@ -43,6 +57,66 @@ public sealed class AuthRepository(SqlConnection connection) : IAuthRepository
 
         return await connection.QuerySingleAsync<int>(
             "dbo.usp_RefreshTokens_Create",
+            parameters,
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<RefreshTokenRotationResult> RotateRefreshTokenAsync(
+        string currentTokenHash,
+        string newTokenHash,
+        DateTime newExpiresAtUtc)
+    {
+        var parameters = new DynamicParameters();
+
+        parameters.Add(
+            "@CurrentTokenHash",
+            currentTokenHash,
+            DbType.AnsiStringFixedLength,
+            size: 64);
+
+        parameters.Add(
+            "@NewTokenHash",
+            newTokenHash,
+            DbType.AnsiStringFixedLength,
+            size: 64);
+
+        parameters.Add(
+            "@NewExpiresAt",
+            newExpiresAtUtc,
+            DbType.DateTime2);
+
+        return await connection.QuerySingleAsync<RefreshTokenRotationResult>(
+            "dbo.usp_RefreshTokens_Rotate",
+            parameters,
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<int> RevokeRefreshTokenFamilyAsync(
+        string tokenHash)
+    {
+        var parameters = new DynamicParameters();
+
+        parameters.Add(
+            "@TokenHash",
+            tokenHash,
+            DbType.AnsiStringFixedLength,
+            size: 64);
+
+        return await connection.QuerySingleAsync<int>(
+            "dbo.usp_RefreshTokens_RevokeCurrent",
+            parameters,
+            commandType: CommandType.StoredProcedure);
+    }
+
+    public async Task<int> RevokeAllRefreshTokensForUserAsync(
+        int userId)
+    {
+        var parameters = new DynamicParameters();
+
+        parameters.Add("@UserId", userId, DbType.Int32);
+
+        return await connection.QuerySingleAsync<int>(
+            "dbo.usp_RefreshTokens_RevokeAllForUser",
             parameters,
             commandType: CommandType.StoredProcedure);
     }
@@ -77,18 +151,6 @@ public sealed class AuthRepository(SqlConnection connection) : IAuthRepository
 
         return await connection.QuerySingleAsync<int>(
             "dbo.usp_Users_ChangePassword",
-            parameters,
-            commandType: CommandType.StoredProcedure);
-    }
-
-    public async Task<LoginUser?> GetUserByIdAsync(int userId)
-    {
-        var parameters = new DynamicParameters();
-
-        parameters.Add("@UserId", userId, DbType.Int32);
-
-        return await connection.QuerySingleOrDefaultAsync<LoginUser>(
-            "dbo.usp_Users_GetById",
             parameters,
             commandType: CommandType.StoredProcedure);
     }
