@@ -9,7 +9,7 @@ namespace backend.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(AuthService authService) : ControllerBase
+public sealed class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]

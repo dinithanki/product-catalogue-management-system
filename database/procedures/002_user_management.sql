@@ -4,14 +4,16 @@ GO
 
 -- Status codes:
 -- 0 = Success
--- 1 = Request rejected
--- 2 = User not found
+-- 1 = Invalid input
+-- 2 = Username already exists (Create)
+--     or User not found (other procedures)
 -- 3 = Last active Admin cannot be demoted/deactivated
 -- 4 = Actor is not an active Admin
 -- 5 = Cannot deactivate your own account
 
--- 1. Create a user with a temporary password.
--- .NET generates the password hash before calling this procedure.
+-- =========================================================
+-- 1. CREATE USER
+-- =========================================================
 CREATE OR ALTER PROCEDURE dbo.usp_Users_Create
     @PerformedByUserId INT,
     @Username NVARCHAR(50),
@@ -20,6 +22,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_Users_Create
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     IF NOT EXISTS
     (
@@ -30,30 +33,80 @@ BEGIN
           AND IsActive = 1
     )
     BEGIN
-        SELECT 4 AS StatusCode;
+        SELECT 4 AS StatusCode, CAST(NULL AS INT) AS UserId;
         RETURN;
     END;
+
+    SET @Username = LTRIM(RTRIM(@Username));
 
     IF @Role NOT IN ('Admin', 'User')
-       OR NULLIF(LTRIM(RTRIM(@Username)), '') IS NULL
+       OR NULLIF(@Username, '') IS NULL
        OR NULLIF(@PasswordHash, '') IS NULL
     BEGIN
-        SELECT 1 AS StatusCode;
+        SELECT 1 AS StatusCode, CAST(NULL AS INT) AS UserId;
         RETURN;
     END;
 
-    INSERT INTO dbo.Users
-        (Username, PasswordHash, Role, MustChangePassword, IsActive)
-    VALUES
-        (@Username, @PasswordHash, @Role, 1, 1);
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
-    SELECT
-        0 AS StatusCode,
-        CONVERT(INT, SCOPE_IDENTITY()) AS UserId;
+        -- Check whether the username already exists.
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.Users WITH (UPDLOCK, HOLDLOCK)
+            WHERE Username = @Username
+        )
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT 2 AS StatusCode, CAST(NULL AS INT) AS UserId;
+            RETURN;
+        END;
+
+        INSERT INTO dbo.Users
+        (
+            Username,
+            PasswordHash,
+            Role,
+            MustChangePassword,
+            IsActive
+        )
+        VALUES
+        (
+            @Username,
+            @PasswordHash,
+            @Role,
+            1,
+            1
+        );
+
+        DECLARE @NewUserId INT = CONVERT(INT, SCOPE_IDENTITY());
+
+        COMMIT TRANSACTION;
+
+        SELECT 0 AS StatusCode, @NewUserId AS UserId;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        -- The unique constraint remains the final safeguard
+        -- against duplicate usernames.
+        IF ERROR_NUMBER() IN (2601, 2627)
+        BEGIN
+            SELECT 2 AS StatusCode, CAST(NULL AS INT) AS UserId;
+            RETURN;
+        END;
+
+        THROW;
+    END CATCH;
 END;
 GO
 
--- 2. List users without exposing password hashes.
+-- =========================================================
+-- 2. GET ALL USERS
+-- Password hashes are never returned.
+-- =========================================================
 CREATE OR ALTER PROCEDURE dbo.usp_Users_GetAll
     @PerformedByUserId INT
 AS
@@ -84,7 +137,10 @@ BEGIN
 END;
 GO
 
--- 3. Edit a user's username and role.
+-- =========================================================
+-- 3. UPDATE USER
+-- Prevents demotion of the last active Admin.
+-- =========================================================
 CREATE OR ALTER PROCEDURE dbo.usp_Users_Update
     @PerformedByUserId INT,
     @UserId INT,
@@ -112,8 +168,10 @@ BEGIN
             RETURN;
         END;
 
+        SET @Username = LTRIM(RTRIM(@Username));
+
         IF @Role NOT IN ('Admin', 'User')
-           OR NULLIF(LTRIM(RTRIM(@Username)), '') IS NULL
+           OR NULLIF(@Username, '') IS NULL
         BEGIN
             ROLLBACK TRANSACTION;
             SELECT 1 AS StatusCode;
@@ -143,7 +201,8 @@ BEGIN
            (
                SELECT COUNT_BIG(*)
                FROM dbo.Users WITH (UPDLOCK, HOLDLOCK)
-               WHERE Role = 'Admin' AND IsActive = 1
+               WHERE Role = 'Admin'
+                 AND IsActive = 1
            ) <= 1
         BEGIN
             ROLLBACK TRANSACTION;
@@ -157,19 +216,23 @@ BEGIN
         WHERE UserId = @UserId;
 
         COMMIT TRANSACTION;
+
         SELECT 0 AS StatusCode;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
+
         THROW;
     END CATCH;
 END;
 GO
 
--- 4. Reset a user's password.
--- The user must change it at next login.
--- Existing refresh-token sessions are revoked.
+-- =========================================================
+-- 4. RESET USER PASSWORD
+-- Requires the user to change the password at next login.
+-- Revokes existing refresh tokens.
+-- =========================================================
 CREATE OR ALTER PROCEDURE dbo.usp_Users_ResetPassword
     @PerformedByUserId INT,
     @UserId INT,
@@ -214,21 +277,28 @@ BEGIN
         END;
 
         UPDATE dbo.RefreshTokens
-        SET RevokedAt = COALESCE(RevokedAt, SYSUTCDATETIME())
+        SET RevokedAt = COALESCE(
+            RevokedAt,
+            SYSUTCDATETIME()
+        )
         WHERE UserId = @UserId;
 
         COMMIT TRANSACTION;
+
         SELECT 0 AS StatusCode;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
+
         THROW;
     END CATCH;
 END;
 GO
 
--- 5. Activate a user account.
+-- =========================================================
+-- 5. ACTIVATE USER
+-- =========================================================
 CREATE OR ALTER PROCEDURE dbo.usp_Users_Activate
     @PerformedByUserId INT,
     @UserId INT
@@ -260,8 +330,11 @@ BEGIN
 END;
 GO
 
--- 6. Deactivate a user account.
--- Prevent self-deactivation and protect the last active Admin.
+-- =========================================================
+-- 6. DEACTIVATE USER
+-- Prevents self-deactivation and deactivation of the last
+-- active Admin. Revokes the target user's refresh tokens.
+-- =========================================================
 CREATE OR ALTER PROCEDURE dbo.usp_Users_Deactivate
     @PerformedByUserId INT,
     @UserId INT
@@ -316,7 +389,8 @@ BEGIN
            (
                SELECT COUNT_BIG(*)
                FROM dbo.Users WITH (UPDLOCK, HOLDLOCK)
-               WHERE Role = 'Admin' AND IsActive = 1
+               WHERE Role = 'Admin'
+                 AND IsActive = 1
            ) <= 1
         BEGIN
             ROLLBACK TRANSACTION;
@@ -329,15 +403,20 @@ BEGIN
         WHERE UserId = @UserId;
 
         UPDATE dbo.RefreshTokens
-        SET RevokedAt = COALESCE(RevokedAt, SYSUTCDATETIME())
+        SET RevokedAt = COALESCE(
+            RevokedAt,
+            SYSUTCDATETIME()
+        )
         WHERE UserId = @UserId;
 
         COMMIT TRANSACTION;
+
         SELECT 0 AS StatusCode;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
+
         THROW;
     END CATCH;
 END;
