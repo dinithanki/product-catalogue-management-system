@@ -13,4 +13,10 @@ public interface IAuthService
         int userId,
         string currentPassword,
         string newPassword);
+
+    Task<LoginResponse?> RefreshTokenAsync(
+        string refreshToken);
+
+    Task<bool> LogoutAsync(
+        string refreshToken);
 }
