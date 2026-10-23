@@ -26,6 +26,11 @@ keells-product-catalogue/
 └── README.md
 ```
 
+## Documentation
+
+- [Architecture](docs/architecture.md) — application layers, request flow, authentication, and currency conversion.
+- [Database design](docs/database-design.md) — schema, constraints, indexes, and stored procedures.
+
 ## Implemented Features
 
 ### Authentication and Security
