@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import axios from "axios";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { createProduct, getProduct, updateProduct, type ProductRequest } from "../api/productApi";
 import { getActiveSuppliers, type ActiveSupplier } from "../api/supplierApi";
 
@@ -18,9 +18,13 @@ const inputClass = "w-full rounded-lg border border-[#DCE5DF] bg-white px-3 py-2
 
 export default function ProductFormPage() {
   const { productId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const editing = Boolean(productId);
   const id = Number(productId);
+  const returnTo = editing && (location.state as { returnTo?: unknown } | null)?.returnTo === `/products/${productId}`
+    ? `/products/${productId}`
+    : "/products";
   const [values, setValues] = useState<FormValues>(blank);
   const [suppliers, setSuppliers] = useState<ActiveSupplier[]>([]);
   const [loading, setLoading] = useState(editing);
@@ -74,8 +78,8 @@ export default function ProductFormPage() {
     const request: ProductRequest = { sku: values.sku.trim(), name: values.name.trim(), category: values.category.trim(), supplierId: Number(values.supplierId), unitPrice: Number(values.unitPrice), packSize: values.packSize.trim() };
     setSaving(true);
     try {
-      if (editing) { await updateProduct(id, request); setSuccess("Product updated successfully."); }
-      else { const result = await createProduct(request); navigate(`/products/${result.productId}`, { replace: true }); return; }
+      if (editing) { await updateProduct(id, request); navigate(returnTo, { replace: true, state: { successMessage: "Product updated successfully." } }); return; }
+      else { const result = await createProduct(request); navigate(`/products/${result.productId}`, { replace: true, state: { successMessage: "Product created successfully." } }); return; }
     } catch (requestError) {
       if (axios.isAxiosError(requestError)) {
         const data = requestError.response?.data as { message?: unknown; errors?: Record<string, string[]> } | undefined;
@@ -90,7 +94,7 @@ export default function ProductFormPage() {
     { key: "sku", label: "SKU", maxLength: 50 }, { key: "name", label: "Product name", maxLength: 150 }, { key: "category", label: "Category", maxLength: 100 }, { key: "unitPrice", label: "Unit price", maxLength: 24, type: "number" }, { key: "packSize", label: "Pack size", maxLength: 50 },
   ];
 
-  return <div className="mx-auto max-w-3xl"><Link to="/products" className="text-sm font-semibold text-[#438B68] hover:underline">← Back</Link><div className="mb-6 mt-3"><p className="text-sm font-semibold text-[#438B68]">PRODUCTS</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">{editing ? "Edit product" : "Add product"}</h1><p className="mt-1 text-sm text-[#64748B]">Enter the catalogue details using the existing supplier currency.</p></div>
+  return <div className="mx-auto max-w-3xl"><Link to={returnTo} className="text-sm font-semibold text-[#438B68] hover:underline">← Back</Link><div className="mb-6 mt-3"><p className="text-sm font-semibold text-[#438B68]">PRODUCTS</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">{editing ? "Edit product" : "Add product"}</h1><p className="mt-1 text-sm text-[#64748B]">Enter the catalogue details using the existing supplier currency.</p></div>
     <form onSubmit={(event) => void submit(event)} className="space-y-5 rounded-xl border border-[#DCE5DF] bg-white p-5 shadow-sm sm:p-7" noValidate>
       {error && <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"><span>{error}</span><button type="button" onClick={() => { setLoading(true); setReloadVersion((version) => version + 1); }} className="shrink-0 font-semibold underline">Retry</button></div>}{success && <p role="status" className="rounded-lg border border-[#B8D8C1] bg-[#E6F4EA] p-3 text-sm text-[#245C43]">{success}</p>}
       <div className="grid gap-5 sm:grid-cols-2">{fields.slice(0, 3).map((field) => <label key={field.key} className="grid gap-1.5 text-sm font-medium text-[#24352B]">{field.label}<input className={inputClass} maxLength={field.maxLength} value={values[field.key]} onChange={(event) => updateField(field.key, event.target.value)} aria-invalid={Boolean(fieldErrors[field.key])} aria-describedby={fieldErrors[field.key] ? `${field.key}-error` : undefined} />{fieldErrors[field.key] && <span id={`${field.key}-error`} className="text-xs font-normal text-red-700">{fieldErrors[field.key]}</span>}</label>)}
@@ -98,6 +102,6 @@ export default function ProductFormPage() {
         <label className="grid gap-1.5 text-sm font-medium text-[#24352B]">Unit price<input className={inputClass} type="number" min="0" step="0.0001" max="99999999999999.9999" value={values.unitPrice} onChange={(event) => updateField("unitPrice", event.target.value)} aria-invalid={Boolean(fieldErrors.unitPrice)} />{fieldErrors.unitPrice && <span className="text-xs font-normal text-red-700">{fieldErrors.unitPrice}</span>}</label>
         <label className="grid gap-1.5 text-sm font-medium text-[#24352B]">Pack size<input className={inputClass} maxLength={50} value={values.packSize} onChange={(event) => updateField("packSize", event.target.value)} aria-invalid={Boolean(fieldErrors.packSize)} />{fieldErrors.packSize && <span className="text-xs font-normal text-red-700">{fieldErrors.packSize}</span>}</label>
       </div>
-      <div className="flex flex-col-reverse gap-3 border-t border-[#EDF1EE] pt-5 sm:flex-row sm:justify-end"><Link to="/products" className="rounded-lg border border-[#DCE5DF] px-4 py-2.5 text-center text-sm font-semibold text-[#52645A]">Cancel</Link><button disabled={saving || suppliers.length === 0} className="rounded-lg bg-[#438B68] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#367354] disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Saving…" : editing ? "Save changes" : "Create product"}</button></div>
+      <div className="flex flex-col-reverse gap-3 border-t border-[#EDF1EE] pt-5 sm:flex-row sm:justify-end"><Link to={returnTo} className="rounded-lg border border-[#DCE5DF] px-4 py-2.5 text-center text-sm font-semibold text-[#52645A]">Cancel</Link><button disabled={saving || suppliers.length === 0} className="rounded-lg bg-[#438B68] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#367354] disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Saving…" : editing ? "Save changes" : "Create product"}</button></div>
     </form></div>;
 }

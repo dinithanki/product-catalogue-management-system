@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import { getProducts, type Product, type ProductQueryParams, type ProductSortBy, type SortDirection } from "../api/productApi";
 import { getActiveSuppliers, type ActiveSupplier } from "../api/supplierApi";
@@ -34,6 +34,11 @@ function apiError(error: unknown) {
 }
 
 export default function ProductsPage() {
+  const location = useLocation();
+  const [successMessage, setSuccessMessage] = useState(() => {
+    const message = (location.state as { successMessage?: unknown } | null)?.successMessage;
+    return typeof message === "string" ? message : "";
+  });
   const user = useAuthStore((state) => state.user);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<ActiveSupplier[]>([]);
@@ -50,6 +55,12 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [suppliersError, setSuppliersError] = useState("");
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   const loadProducts = useCallback(async () => {
     setIsLoading(true);
@@ -97,6 +108,8 @@ export default function ProductsPage() {
       <div><p className="text-sm font-semibold text-[#438B68]">CATALOGUE</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">Products</h1><p className="mt-1 text-sm text-[#64748B]">Search and manage supplier products and price conversions.</p></div>
       <Link to="/products/new" className="inline-flex justify-center rounded-lg bg-[#438B68] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#367354] focus:outline-none focus:ring-4 focus:ring-[#E6F4EA]">Add product</Link>
     </div>
+
+    {successMessage && <p role="status" className="mb-4 rounded-lg border border-[#B8D8C1] bg-[#E6F4EA] p-3 text-sm text-[#245C43]">{successMessage}</p>}
 
     <section aria-label="Product filters" className="mb-5 grid gap-3 rounded-xl border border-[#DCE5DF] bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,220px)_minmax(180px,240px)_auto]">
       <label className="grid gap-1.5 text-xs font-semibold text-[#52645A]">Search products<input className={controlClass} type="search" maxLength={100} value={search} onChange={(event) => { setSearch(event.target.value); setPageNumber(1); }} placeholder="Name or SKU" /></label>

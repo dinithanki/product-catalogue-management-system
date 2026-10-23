@@ -39,8 +39,15 @@ export default function SuppliersPage() {
   const [form, setForm] = useState(initial);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [busySupplierId, setBusySupplierId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -71,13 +78,15 @@ export default function SuppliersPage() {
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setFormError("");
+    event.preventDefault(); setFormError(""); setSuccessMessage("");
     if (!validate()) return;
     const payload = { ...form, name: form.name.trim(), country: form.country.trim(), currencyCode: form.currencyCode.trim().toUpperCase(), contactNumber: form.contactNumber.trim(), email: form.email.trim() };
     setSaving(true);
     try {
+      const wasEditing = Boolean(editing);
       if (editing) await updateSupplier(editing.supplierId, payload);
       else await createSupplier(payload);
+      setSuccessMessage(wasEditing ? "Supplier updated successfully." : "Supplier created successfully.");
       setForm(initial); setEditing(null); setFormOpen(false); await load();
     } catch (requestError) {
       if (axios.isAxiosError(requestError)) {
@@ -89,10 +98,11 @@ export default function SuppliersPage() {
   }
 
   async function toggleStatus(supplier: Supplier) {
-    setBusySupplierId(supplier.supplierId); setError("");
+    setBusySupplierId(supplier.supplierId); setError(""); setSuccessMessage("");
     try {
       if (supplier.isActive) await deactivateSupplier(supplier.supplierId);
       else await reactivateSupplier(supplier.supplierId);
+      setSuccessMessage(supplier.isActive ? "Supplier deactivated successfully." : "Supplier reactivated successfully.");
       await load();
     } catch (requestError) { setError(apiMessage(requestError, "Could not update supplier status. Please retry.")); }
     finally { setBusySupplierId(null); }
@@ -103,6 +113,7 @@ export default function SuppliersPage() {
       <div><p className="text-sm font-semibold text-[#438B68]">PARTNERS</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">Suppliers</h1><p className="mt-1 text-sm text-[#64748B]">Supplier contacts and supported currencies.</p></div>
       {isAdmin && <button onClick={startCreate} className="rounded-lg bg-[#438B68] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#367354]">{formOpen && !editing ? "Close form" : "Add supplier"}</button>}
     </div>
+    {successMessage && <p role="status" className="mb-4 rounded-lg border border-[#B8D8C1] bg-[#E6F4EA] p-3 text-sm text-[#245C43]">{successMessage}</p>}
     {formOpen && isAdmin && <form onSubmit={(event) => void submit(event)} className="mb-6 rounded-xl border border-[#DCE5DF] bg-white p-5 shadow-sm sm:p-6" noValidate>
       <div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-[#245C43]">{editing ? `Edit ${editing.name}` : "New supplier"}</h2><button type="button" onClick={() => { setFormOpen(false); setEditing(null); }} className="text-sm font-semibold text-[#52645A]">Close</button></div>
       {formError && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{formError}</p>}
