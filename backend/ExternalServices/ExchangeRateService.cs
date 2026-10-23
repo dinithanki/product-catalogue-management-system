@@ -6,7 +6,7 @@ namespace backend.ExternalServices;
 
 public sealed class ExchangeRateService(
     HttpClient httpClient,
-    IConfiguration configuration)
+    IConfiguration configuration) : IExchangeRateService
 {
     public async Task<ExchangeRateApiResponse> GetLatestRatesAsync(
         CancellationToken cancellationToken = default)

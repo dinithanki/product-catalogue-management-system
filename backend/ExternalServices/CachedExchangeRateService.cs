@@ -1,15 +1,17 @@
 
-using Microsoft.Extensions.Caching.Memory;
 using backend.DTOs.External;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace backend.ExternalServices;
 
 public sealed class CachedExchangeRateService(
-    ExchangeRateService exchangeRateService,
+    IExchangeRateService exchangeRateService,
     IMemoryCache cache)
 {
     private const string CacheKey = "ExchangeRates.USD";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
+
+    private static readonly TimeSpan CacheDuration =
+        TimeSpan.FromMinutes(30);
 
     public async Task<ExchangeRateApiResponse> GetLatestRatesAsync(
         CancellationToken cancellationToken = default)
