@@ -58,6 +58,7 @@ export default function DashboardLayout() {
       <nav aria-label="Main navigation" className="flex-1 space-y-1 p-3">
         <NavLink to="/products" onClick={() => setDrawerOpen(false)} className={linkClass}><span aria-hidden="true">▦</span>{(!collapsed || mobile) && "Products"}</NavLink>
         <NavLink to="/suppliers" onClick={() => setDrawerOpen(false)} className={linkClass}><span aria-hidden="true">⌂</span>{(!collapsed || mobile) && "Suppliers"}</NavLink>
+        {user?.role.toLowerCase() === "admin" && <NavLink to="/users" onClick={() => setDrawerOpen(false)} className={linkClass}><span aria-hidden="true">♙</span>{(!collapsed || mobile) && "Users"}</NavLink>}
       </nav>
       <div className="border-t border-[#DCE5DF] p-3">
         {(!collapsed || mobile) && user && <div className="mb-3 truncate px-3 text-xs text-[#64748B]">Signed in as <strong className="text-[#24352B]">{user.username}</strong><br /><span>{user.role}</span></div>}
