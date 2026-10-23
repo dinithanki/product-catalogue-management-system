@@ -8,12 +8,10 @@ public sealed class PasswordChangeMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(
         HttpContext context,
-        AuthRepository authRepository)
+        IAuthRepository authRepository)
     {
         var path = context.Request.Path;
 
-        // Allow login and password change to reach their controllers.
-        // The password-change controller still requires authentication.
         var isLoginEndpoint = path.Equals(
             "/api/auth/login",
             StringComparison.OrdinalIgnoreCase);
@@ -42,8 +40,6 @@ public sealed class PasswordChangeMiddleware(RequestDelegate next)
                 return;
             }
 
-            // Read the latest user status through the existing
-            // Dapper repository and SQL stored procedure.
             var user = await authRepository.GetUserByIdAsync(userId);
 
             if (user is null || !user.IsActive)

@@ -32,13 +32,14 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddMemoryCache();
 
 // Typed HTTP client for ExchangeRate-API
-builder.Services.AddHttpClient<ExchangeRateService>(client =>
-{
-    client.BaseAddress = new Uri(
-        "https://v6.exchangerate-api.com/v6/");
+builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>(
+    client =>
+    {
+        client.BaseAddress = new Uri(
+            "https://v6.exchangerate-api.com/v6/");
 
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
 
 // Cached exchange-rate service
 builder.Services.AddScoped<CachedExchangeRateService>();
@@ -122,6 +123,8 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Swagger is available in development
 if (app.Environment.IsDevelopment())
