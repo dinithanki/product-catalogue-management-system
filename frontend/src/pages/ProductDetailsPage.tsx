@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { deleteProduct, getProduct, type Product } from "../api/productApi";
 import { useAuthStore } from "../stores/authStore";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 function money(amount: number, currency: string) {
   try { return new Intl.NumberFormat("en-LK", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount); }
@@ -30,6 +31,7 @@ export default function ProductDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const id = Number(productId);
   const [successMessage, setSuccessMessage] = useState(() => {
     const message = (location.state as { successMessage?: unknown } | null)?.successMessage;
@@ -53,11 +55,11 @@ export default function ProductDetailsPage() {
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
 
   async function handleDelete() {
-    if (!product || !window.confirm(`Soft-delete ${product.name}?`)) return;
+    if (!product) return;
     setDeleting(true); setActionError("");
     try { await deleteProduct(product.productId); navigate("/products", { replace: true }); }
     catch (requestError) { setActionError(errorText(requestError)); }
-    finally { setDeleting(false); }
+    finally { setDeleting(false); setDeleteDialogOpen(false); }
   }
 
   if (loading) return <p role="status" className="rounded-xl border border-[#DCE5DF] bg-white p-8 text-center text-[#64748B]">Loading product…</p>;
@@ -66,8 +68,9 @@ export default function ProductDetailsPage() {
   return <div>
     <Link to="/products" className="text-sm font-semibold text-[#438B68] hover:underline">← Products</Link>
     {successMessage && <p role="status" className="mt-4 rounded-lg border border-[#B8D8C1] bg-[#E6F4EA] p-3 text-sm text-[#245C43]">{successMessage}</p>}
-    <div className="mb-6 mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm font-semibold text-[#438B68]">PRODUCT DETAILS</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">{product.name}</h1><p className="mt-1 text-sm text-[#64748B]">SKU {product.sku}</p></div><div className="flex gap-2"><Link to={`/products/${product.productId}/edit`} state={{ returnTo: `/products/${product.productId}` }} className="rounded-lg border border-[#DCE5DF] bg-white px-4 py-2.5 text-sm font-semibold text-[#245C43]">Edit product</Link>{isAdmin && <button disabled={deleting} onClick={() => void handleDelete()} className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-50">{deleting ? "Deleting…" : "Delete"}</button>}</div></div>
+    <div className="mb-6 mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm font-semibold text-[#438B68]">PRODUCT DETAILS</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">{product.name}</h1><p className="mt-1 text-sm text-[#64748B]">SKU {product.sku}</p></div><div className="flex gap-2"><Link to={`/products/${product.productId}/edit`} state={{ returnTo: `/products/${product.productId}` }} className="rounded-lg border border-[#DCE5DF] bg-white px-4 py-2.5 text-sm font-semibold text-[#245C43]">Edit product</Link>{isAdmin && <button disabled={deleting} onClick={() => setDeleteDialogOpen(true)} className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-50">Delete</button>}</div></div>
     {actionError && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{actionError}</p>}
     <section className="rounded-xl border border-[#DCE5DF] bg-white p-5 shadow-sm sm:p-7"><h2 className="text-lg font-semibold text-[#245C43]">Product information</h2><dl className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">{[["Category", product.category], ["Supplier", product.supplierName], ["Pack size", product.packSize], ["Supplier price", money(product.unitPrice, product.currencyCode)], ["LKR equivalent", money(product.lkrEquivalent, "LKR")], ["Exchange rate", `${product.exchangeRateApplied.toLocaleString("en-LK", { maximumFractionDigits: 6 })} LKR per ${product.currencyCode}`], ["Exchange-rate timestamp (UTC)", new Date(product.exchangeRateTimestamp).toLocaleString("en-LK", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })]].map(([label, value]) => <div key={label}><dt className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{label}</dt><dd className="mt-1 break-words text-sm text-[#24352B]">{value}</dd></div>)}</dl></section>
+    <ConfirmDialog open={deleteDialogOpen} title="Delete this product?" message={`“${product.name}” will be soft-deleted and removed from the catalogue.`} confirmLabel="Delete product" danger busy={deleting} onClose={() => setDeleteDialogOpen(false)} onConfirm={() => void handleDelete()} />
   </div>;
 }
