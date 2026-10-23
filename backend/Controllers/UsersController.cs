@@ -125,6 +125,11 @@ public sealed class UsersController(IUserService userService) : ControllerBase
                 message = "You cannot change your own role."
             }),
 
+            6 => Conflict(new
+            {
+                message = "Username already exists."
+            }),
+
             _ => StatusCode(StatusCodes.Status500InternalServerError, new
             {
                 message = "Unable to update the user."
