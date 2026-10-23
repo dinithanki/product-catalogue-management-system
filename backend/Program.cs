@@ -1,6 +1,7 @@
 
 using System.Text;
 using backend.Configuration;
+using backend.ExternalServices;
 using backend.Middleware;
 using backend.Models;
 using backend.Repositories;
@@ -9,19 +10,40 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers and Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+// Application services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<IProductService, ProductService>();
 
+// In-memory cache for exchange rates
+builder.Services.AddMemoryCache();
+
+// Typed HTTP client for ExchangeRate-API
+builder.Services.AddHttpClient<ExchangeRateService>(client =>
+{
+    client.BaseAddress = new Uri(
+        "https://v6.exchangerate-api.com/v6/");
+
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+// Cached exchange-rate service
+builder.Services.AddScoped<CachedExchangeRateService>();
+
+// Swagger authentication configuration
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition(
@@ -46,11 +68,14 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
-// Database and dependency injection
+// Database configuration
 builder.Services.AddDatabase(builder.Configuration);
+
+// Existing concrete registrations
 builder.Services.AddScoped<AuthRepository>();
 builder.Services.AddScoped<AuthService>();
 
+// Password hashing
 builder.Services.AddScoped<
     IPasswordHasher<LoginUser>,
     PasswordHasher<LoginUser>>();
