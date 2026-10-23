@@ -1,4 +1,3 @@
-
 import axiosInstance from "./axiosInstance";
 
 export interface Product {
@@ -24,23 +23,48 @@ export interface ProductListResponse {
   totalPages: number;
 }
 
+export type ProductSortBy = "name" | "sku" | "category" | "price";
+export type SortDirection = "ASC" | "DESC";
+
 export interface ProductQueryParams {
   pageNumber?: number;
   pageSize?: number;
-  searchTerm?: string;
+  search?: string;
   category?: string;
   supplierId?: number;
-  sortBy?: string;
-  sortDescending?: boolean;
+  sortBy?: ProductSortBy;
+  sortDirection?: SortDirection;
 }
 
-export async function getProducts(
-  params: ProductQueryParams = {},
-): Promise<ProductListResponse> {
-  const response = await axiosInstance.get<ProductListResponse>(
-    "/products",
-    { params },
-  );
+export interface ProductRequest {
+  sku: string;
+  name: string;
+  category: string;
+  supplierId: number;
+  unitPrice: number;
+  packSize: string;
+}
 
-  return response.data;
+export async function getProducts(params: ProductQueryParams = {}) {
+  const { data } = await axiosInstance.get<ProductListResponse>("/products", { params });
+  return data;
+}
+
+export async function getProduct(id: number) {
+  const { data } = await axiosInstance.get<Product>(`/products/${id}`);
+  return data;
+}
+
+export async function createProduct(product: ProductRequest) {
+  const { data } = await axiosInstance.post<{ productId: number; message: string }>("/products", product);
+  return data;
+}
+
+export async function updateProduct(id: number, product: ProductRequest) {
+  const { data } = await axiosInstance.put<{ message: string }>(`/products/${id}`, product);
+  return data;
+}
+
+export async function deleteProduct(id: number) {
+  await axiosInstance.delete(`/products/${id}`);
 }

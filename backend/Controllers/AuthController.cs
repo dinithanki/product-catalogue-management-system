@@ -9,16 +9,19 @@ namespace backend.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService authService) : ControllerBase
+public sealed class AuthController(IAuthService authService, IConfiguration configuration) : ControllerBase
 {
+    private const string RefreshCookieName = "keells-refresh";
+    private const string RefreshCookiePath = "/api/auth";
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login(
         [FromBody] LoginRequest request)
     {
-        var result = await authService.LoginAsync(
-            request.Username,
-            request.Password);
+        if (!HasAllowedOrigin()) return Forbid();
+
+        var result = await authService.LoginAsync(request.Username, request.Password, SetRefreshCookie);
 
         if (result is null)
         {
@@ -33,11 +36,11 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public async Task<IActionResult> Refresh(
-        [FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> Refresh()
     {
-        var result = await authService.RefreshTokenAsync(
-            request.RefreshToken);
+        if (!HasAllowedOrigin()) return Forbid();
+        var refreshToken = Request.Cookies[RefreshCookieName];
+        var result = await authService.RefreshTokenAsync(refreshToken ?? string.Empty, SetRefreshCookie);
 
         if (result is null)
         {
@@ -52,11 +55,12 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 
     [HttpPost("logout")]
     [AllowAnonymous]
-    public async Task<IActionResult> Logout(
-        [FromBody] RefreshTokenRequest request)
+    public async Task<IActionResult> Logout()
     {
-        var revoked = await authService.LogoutAsync(
-            request.RefreshToken);
+        if (!HasAllowedOrigin()) return Forbid();
+        var refreshToken = Request.Cookies[RefreshCookieName];
+        var revoked = await authService.LogoutAsync(refreshToken ?? string.Empty);
+        ExpireRefreshCookie();
 
         if (!revoked)
         {
@@ -70,6 +74,35 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         {
             message = "Logged out successfully."
         });
+    }
+
+    private void SetRefreshCookie(string token, DateTime expiresAtUtc)
+    {
+        Response.Cookies.Append(RefreshCookieName, token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = Request.IsHttps,
+            SameSite = SameSiteMode.Lax,
+            Path = RefreshCookiePath,
+            Expires = new DateTimeOffset(DateTime.SpecifyKind(expiresAtUtc, DateTimeKind.Utc)),
+            IsEssential = true
+        });
+    }
+
+    private void ExpireRefreshCookie() => Response.Cookies.Delete(RefreshCookieName, new CookieOptions
+    {
+        HttpOnly = true,
+        Secure = Request.IsHttps,
+        SameSite = SameSiteMode.Lax,
+        Path = RefreshCookiePath
+    });
+
+    private bool HasAllowedOrigin()
+    {
+        if (!Request.Headers.TryGetValue("Origin", out var origin)) return true;
+        var allowedOrigins = configuration.GetSection("Cors:FrontendOrigins").Get<string[]>()
+            ?? ["http://localhost:5173"];
+        return allowedOrigins.Contains(origin.ToString(), StringComparer.OrdinalIgnoreCase);
     }
 
     [HttpPost("change-password")]

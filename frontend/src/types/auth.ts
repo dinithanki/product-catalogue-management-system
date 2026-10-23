@@ -1,4 +1,3 @@
-
 export interface LoginRequest {
   username: string;
   password: string;
@@ -10,7 +9,22 @@ export interface AuthUser {
   role: string;
 }
 
-export interface LoginResponse {
+export interface AuthTokenResponse {
+  accessToken: string;
+  expiresAtUtc: string;
+  userId: number;
+  username: string;
+  role: string;
+  mustChangePassword: boolean;
+}
+
+export type LoginResponse = AuthTokenResponse;
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface LogoutResponse {
   message: string;
-  token: string;
 }

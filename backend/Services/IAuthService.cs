@@ -7,7 +7,8 @@ public interface IAuthService
 {
     Task<LoginResponse?> LoginAsync(
         string username,
-        string password);
+        string password,
+        Action<string, DateTime> setRefreshCookie);
 
     Task<bool> ChangePasswordAsync(
         int userId,
@@ -15,7 +16,8 @@ public interface IAuthService
         string newPassword);
 
     Task<LoginResponse?> RefreshTokenAsync(
-        string refreshToken);
+        string refreshToken,
+        Action<string, DateTime> setRefreshCookie);
 
     Task<bool> LogoutAsync(
         string refreshToken);

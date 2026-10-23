@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+var frontendOrigins = builder.Configuration.GetSection("Cors:FrontendOrigins")
+    .Get<string[]>() ?? ["http://localhost:5173"];
 
 // CORS: allow the React development frontend.
 builder.Services.AddCors(options =>
@@ -18,7 +20,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins(frontendOrigins)
+            .AllowCredentials()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
