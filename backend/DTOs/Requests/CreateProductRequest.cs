@@ -1,5 +1,6 @@
 
 using System.ComponentModel.DataAnnotations;
+using backend.Validation;
 
 namespace backend.DTOs.Requests;
 
@@ -7,6 +8,7 @@ public sealed class CreateProductRequest
 {
     [Required]
     [StringLength(50, MinimumLength = 1)]
+    [Sku]
     public string SKU { get; set; } = string.Empty;
 
     [Required]
