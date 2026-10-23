@@ -8,6 +8,7 @@ GO
 -- 2 = Product not found
 -- 3 = Actor is not authorized
 -- 4 = Supplier not found or inactive
+-- 5 = Duplicate SKU (the repository maps the unique constraint violation)
 
 -- 1. Get products with server-side pagination, search,
 -- supplier/category filtering, and sorting.

@@ -79,6 +79,8 @@ public sealed class ProductsController(IProductService productService)
                 message = "The selected supplier does not exist or is inactive."
             }),
 
+            5 => Conflict(new { message = "SKU already exists." }),
+
             _ => StatusCode(500, new { message = "Unable to create product." })
         };
     }
@@ -117,6 +119,8 @@ public sealed class ProductsController(IProductService productService)
             {
                 message = "The selected supplier does not exist or is inactive."
             }),
+
+            5 => Conflict(new { message = "SKU already exists." }),
 
             _ => StatusCode(500, new { message = "Unable to update product." })
         };
