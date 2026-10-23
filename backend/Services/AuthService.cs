@@ -3,7 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using backend.DTOs.Response;
+using backend.DTOs.Responses;
 using backend.Models;
 using backend.Repositories;
 using Microsoft.AspNetCore.Identity;

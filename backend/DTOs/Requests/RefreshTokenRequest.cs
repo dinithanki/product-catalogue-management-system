@@ -1,7 +1,7 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace backend.DTOs.Request;
+namespace backend.DTOs.Requests;
 
 public sealed class RefreshTokenRequest
 {

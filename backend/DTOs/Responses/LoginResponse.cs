@@ -1,5 +1,5 @@
 
-namespace backend.DTOs.Response;
+namespace backend.DTOs.Responses;
 
 public sealed class LoginResponse
 {
