@@ -18,7 +18,8 @@ public sealed class AuthService(
 {
     public async Task<LoginResponse?> LoginAsync(
         string username,
-        string password)
+        string password,
+        Action<string, DateTime> setRefreshCookie)
     {
         var user = await authRepository.GetUserByUsernameAsync(username);
 
@@ -51,25 +52,24 @@ public sealed class AuthService(
             throw new InvalidOperationException(
                 "The refresh token could not be saved.");
 
-        return CreateLoginResponse(
-            user,
-            accessToken,
-            refreshToken,
-            accessTokenExpiry);
+        setRefreshCookie(refreshToken, refreshTokenExpiry);
+        return CreateLoginResponse(user, accessToken, accessTokenExpiry);
     }
 
     public async Task<LoginResponse?> RefreshTokenAsync(
-        string refreshToken)
+        string refreshToken,
+        Action<string, DateTime> setRefreshCookie)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
             return null;
 
         var newRefreshToken = GenerateRefreshToken();
+        var refreshExpiry = DateTime.UtcNow.AddDays(7);
 
         var rotationResult = await authRepository.RotateRefreshTokenAsync(
             HashRefreshToken(refreshToken),
             HashRefreshToken(newRefreshToken),
-            DateTime.UtcNow.AddDays(7));
+            refreshExpiry);
 
         // Only a successful rotation can issue new tokens.
         if (rotationResult.StatusCode != 0 ||
@@ -87,11 +87,8 @@ public sealed class AuthService(
         var accessTokenExpiry = DateTime.UtcNow.AddMinutes(15);
         var accessToken = GenerateAccessToken(user, accessTokenExpiry);
 
-        return CreateLoginResponse(
-            user,
-            accessToken,
-            newRefreshToken,
-            accessTokenExpiry);
+        setRefreshCookie(newRefreshToken, refreshExpiry);
+        return CreateLoginResponse(user, accessToken, accessTokenExpiry);
     }
 
     public async Task<bool> LogoutAsync(string refreshToken)
@@ -152,13 +149,11 @@ public sealed class AuthService(
     private static LoginResponse CreateLoginResponse(
         LoginUser user,
         string accessToken,
-        string refreshToken,
         DateTime accessTokenExpiry)
     {
         return new LoginResponse
         {
             AccessToken = accessToken,
-            RefreshToken = refreshToken,
             ExpiresAtUtc = accessTokenExpiry,
             UserId = user.UserId,
             Username = user.Username,

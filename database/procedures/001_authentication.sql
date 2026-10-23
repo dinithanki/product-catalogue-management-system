@@ -220,7 +220,10 @@ BEGIN
         WHERE TokenFamilyId = @TokenFamilyId;
     END;
 
-    SELECT 0 AS StatusCode;
+    IF @TokenFamilyId IS NULL
+        SELECT 1 AS StatusCode;
+    ELSE
+        SELECT 0 AS StatusCode;
 END;
 GO
 

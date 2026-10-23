@@ -68,8 +68,9 @@ public class AuthServiceTests
                 It.IsAny<DateTime>()))
             .ReturnsAsync(0);
 
+        string? refreshCookie = null;
         var result = await _authService.LoginAsync(
-            "testuser", "CorrectPassword123!");
+            "testuser", "CorrectPassword123!", (token, _) => refreshCookie = token);
 
         Assert.NotNull(result);
         Assert.Equal("testuser", result.Username);
@@ -77,7 +78,7 @@ public class AuthServiceTests
         Assert.Equal("User", result.Role);
         Assert.False(result.MustChangePassword);
         Assert.False(string.IsNullOrWhiteSpace(result.AccessToken));
-        Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
+        Assert.False(string.IsNullOrWhiteSpace(refreshCookie));
     }
 
     [Fact]
@@ -95,7 +96,7 @@ public class AuthServiceTests
             .Returns(PasswordVerificationResult.Failed);
 
         var result = await _authService.LoginAsync(
-            "testuser", "WrongPassword123!");
+            "testuser", "WrongPassword123!", (_, _) => { });
 
         Assert.Null(result);
 
@@ -117,7 +118,7 @@ public class AuthServiceTests
             .ReturnsAsync(user);
 
         var result = await _authService.LoginAsync(
-            "testuser", "CorrectPassword123!");
+            "testuser", "CorrectPassword123!", (_, _) => { });
 
         Assert.Null(result);
 
@@ -250,7 +251,7 @@ public class AuthServiceTests
             .ReturnsAsync(new RefreshTokenRotationResult(1, null, null));
 
         var result = await _authService.RefreshTokenAsync(
-            "invalid-refresh-token");
+            "invalid-refresh-token", (_, _) => { });
 
         Assert.Null(result);
 
@@ -276,14 +277,15 @@ public class AuthServiceTests
             .Setup(r => r.GetUserByIdAsync(1))
             .ReturnsAsync(user);
 
+        string? replacementCookie = null;
         var result = await _authService.RefreshTokenAsync(
-            "valid-refresh-token");
+            "valid-refresh-token", (token, _) => replacementCookie = token);
 
         Assert.NotNull(result);
         Assert.Equal(1, result.UserId);
         Assert.False(string.IsNullOrWhiteSpace(result.AccessToken));
-        Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
-        Assert.NotEqual("valid-refresh-token", result.RefreshToken);
+        Assert.False(string.IsNullOrWhiteSpace(replacementCookie));
+        Assert.NotEqual("valid-refresh-token", replacementCookie);
 
         _repositoryMock.Verify(
             r => r.RotateRefreshTokenAsync(
@@ -312,7 +314,7 @@ public class AuthServiceTests
             .ReturnsAsync(user);
 
         var result = await _authService.RefreshTokenAsync(
-            "valid-refresh-token");
+            "valid-refresh-token", (_, _) => { });
 
         Assert.Null(result);
     }
@@ -353,7 +355,7 @@ public class AuthServiceTests
     [Fact]
     public async Task RefreshTokenAsync_WithEmptyToken_ReturnsNull()
     {
-        var result = await _authService.RefreshTokenAsync("");
+        var result = await _authService.RefreshTokenAsync("", (_, _) => { });
 
         Assert.Null(result);
 
