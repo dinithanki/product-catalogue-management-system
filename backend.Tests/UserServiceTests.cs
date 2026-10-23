@@ -229,6 +229,7 @@ public sealed class UserServiceTests
     [Fact]
     public async Task UpdateUserAsync_WithValidInput_ReturnsRepositoryStatus()
     {
+        // Arrange
         _repository
             .Setup(x => x.UpdateUserAsync(
                 1, 5, "updateduser", "User"))
@@ -236,37 +237,158 @@ public sealed class UserServiceTests
 
         var service = CreateService();
 
+        // Act
         var statusCode = await service.UpdateUserAsync(
             1, 5, "updateduser", "User");
 
+        // Assert
         Assert.Equal(0, statusCode);
+
+        _repository.Verify(
+            x => x.UpdateUserAsync(
+                1, 5, "updateduser", "User"),
+            Times.Once);
+    }
+
+    // TEST 1: Admin cannot change their own role.
+    [Fact]
+    public async Task UpdateUserAsync_WhenAdminChangesOwnRole_ReturnsError()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        var statusCode = await service.UpdateUserAsync(
+            performedByUserId: 1,
+            userId: 1,
+            username: "admin",
+            role: "User");
+
+        // Assert
+        Assert.Equal(5, statusCode);
+
+        _repository.Verify(
+            x => x.UpdateUserAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Never);
+    }
+
+    // TEST 2: Admin can update their own username.
+    [Fact]
+    public async Task UpdateUserAsync_WhenAdminUpdatesOwnUsername_Succeeds()
+    {
+        // Arrange
+        _repository
+            .Setup(x => x.UpdateUserAsync(
+                1, 1, "updatedadmin", "Admin"))
+            .ReturnsAsync(0);
+
+        var service = CreateService();
+
+        // Act
+        var statusCode = await service.UpdateUserAsync(
+            performedByUserId: 1,
+            userId: 1,
+            username: " updatedadmin ",
+            role: "Admin");
+
+        // Assert
+        Assert.Equal(0, statusCode);
+
+        _repository.Verify(
+            x => x.UpdateUserAsync(
+                1, 1, "updatedadmin", "Admin"),
+            Times.Once);
+    }
+
+    // TEST 3: Admin can change another user's role.
+    [Fact]
+    public async Task UpdateUserAsync_WhenAdminChangesAnotherUsersRole_Succeeds()
+    {
+        // Arrange
+        _repository
+            .Setup(x => x.UpdateUserAsync(
+                1, 5, "updateduser", "Admin"))
+            .ReturnsAsync(0);
+
+        var service = CreateService();
+
+        // Act
+        var statusCode = await service.UpdateUserAsync(
+            performedByUserId: 1,
+            userId: 5,
+            username: "updateduser",
+            role: "Admin");
+
+        // Assert
+        Assert.Equal(0, statusCode);
+
+        _repository.Verify(
+            x => x.UpdateUserAsync(
+                1, 5, "updateduser", "Admin"),
+            Times.Once);
+    }
+
+    // TEST 4: Invalid role is rejected.
+    [Fact]
+    public async Task UpdateUserAsync_WithInvalidRole_ReturnsInvalidInput()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        var statusCode = await service.UpdateUserAsync(
+            performedByUserId: 1,
+            userId: 5,
+            username: "updateduser",
+            role: "SuperAdmin");
+
+        // Assert
+        Assert.Equal(1, statusCode);
+
+        _repository.Verify(
+            x => x.UpdateUserAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Never);
     }
 
     [Fact]
     public async Task ActivateUserAsync_WithValidId_ReturnsRepositoryStatus()
     {
+        // Arrange
         _repository
             .Setup(x => x.ActivateUserAsync(1, 5))
             .ReturnsAsync(0);
 
         var service = CreateService();
 
+        // Act
         var statusCode = await service.ActivateUserAsync(1, 5);
 
+        // Assert
         Assert.Equal(0, statusCode);
     }
 
     [Fact]
     public async Task DeactivateUserAsync_WithValidId_ReturnsRepositoryStatus()
     {
+        // Arrange
         _repository
             .Setup(x => x.DeactivateUserAsync(1, 5))
             .ReturnsAsync(0);
 
         var service = CreateService();
 
+        // Act
         var statusCode = await service.DeactivateUserAsync(1, 5);
 
+        // Assert
         Assert.Equal(0, statusCode);
     }
 }

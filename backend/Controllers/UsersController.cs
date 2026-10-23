@@ -1,4 +1,3 @@
-
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using backend.Services;
@@ -22,8 +21,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         if (adminId is null)
             return Unauthorized();
 
-        var users = await userService.GetAllUsersAsync(
-            adminId.Value);
+        var users = await userService.GetAllUsersAsync(adminId.Value);
 
         return Ok(users);
     }
@@ -120,6 +118,11 @@ public sealed class UsersController(IUserService userService) : ControllerBase
             4 => StatusCode(StatusCodes.Status403Forbidden, new
             {
                 message = "Administrator access is required."
+            }),
+
+            5 => BadRequest(new
+            {
+                message = "You cannot change your own role."
             }),
 
             _ => StatusCode(StatusCodes.Status500InternalServerError, new

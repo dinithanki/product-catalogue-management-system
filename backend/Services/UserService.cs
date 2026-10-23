@@ -53,26 +53,32 @@ public sealed class UserService(
     }
 
     public Task<int> UpdateUserAsync(
-        int performedByUserId,
-        int userId,
-        string username,
-        string role)
+    int performedByUserId,
+    int userId,
+    string username,
+    string role)
+{
+    if (userId <= 0 ||
+        string.IsNullOrWhiteSpace(username) ||
+        username.Trim().Length < 3 ||
+        username.Trim().Length > 50 ||
+        !IsValidRole(role))
     {
-        if (userId <= 0 ||
-            string.IsNullOrWhiteSpace(username) ||
-            username.Trim().Length < 3 ||
-            username.Trim().Length > 50 ||
-            !IsValidRole(role))
-        {
-            return Task.FromResult(1);
-        }
-
-        return userRepository.UpdateUserAsync(
-            performedByUserId,
-            userId,
-            username.Trim(),
-            role);
+        return Task.FromResult(1);
     }
+
+    // Prevent an administrator from demoting themselves.
+    if (performedByUserId == userId && role != "Admin")
+    {
+        return Task.FromResult(5);
+    }
+
+    return userRepository.UpdateUserAsync(
+        performedByUserId,
+        userId,
+        username.Trim(),
+        role);
+}
 
     public async Task<(int StatusCode, string? TemporaryPassword)>
         ResetUserPasswordAsync(
