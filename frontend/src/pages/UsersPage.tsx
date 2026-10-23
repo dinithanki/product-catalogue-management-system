@@ -26,9 +26,16 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState<UserRequest>(initial);
   const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [busyUserId, setBusyUserId] = useState<number | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<{ username: string; password: string } | null>(null);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -48,7 +55,7 @@ export default function UsersPage() {
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setFormError("");
+    event.preventDefault(); setFormError(""); setSuccessMessage("");
     const username = form.username.trim();
     if (username.length < 3 || username.length > 50) { setFormError("Username must be between 3 and 50 characters."); return; }
     setSaving(true);
@@ -56,9 +63,11 @@ export default function UsersPage() {
       if (editing) {
         await updateUser(editing.userId, { username, role: form.role });
         setTemporaryPassword(null);
+        setSuccessMessage("User updated successfully.");
       } else {
         const result = await createUser({ username, role: form.role });
         setTemporaryPassword({ username, password: result.temporaryPassword });
+        setSuccessMessage("User created successfully.");
       }
       setForm(initial); setEditing(null); setFormOpen(false); await load();
     } catch (requestError) { setFormError(errorMessage(requestError, `Could not ${editing ? "update" : "create"} user. Please retry.`)); }
@@ -66,20 +75,22 @@ export default function UsersPage() {
   }
 
   async function resetPassword(item: ManagedUser) {
-    setBusyUserId(item.userId); setError(""); setTemporaryPassword(null);
+    setBusyUserId(item.userId); setError(""); setSuccessMessage(""); setTemporaryPassword(null);
     try {
       const result = await resetUserPassword(item.userId);
       setTemporaryPassword({ username: item.username, password: result.temporaryPassword });
+      setSuccessMessage(`Password reset successfully for ${item.username}.`);
       await load();
     } catch (requestError) { setError(errorMessage(requestError, "Could not reset password. Please retry.")); }
     finally { setBusyUserId(null); }
   }
 
   async function toggleStatus(item: ManagedUser) {
-    setBusyUserId(item.userId); setError("");
+    setBusyUserId(item.userId); setError(""); setSuccessMessage("");
     try {
       if (item.isActive) await deactivateUser(item.userId);
       else await activateUser(item.userId);
+      setSuccessMessage(item.isActive ? "User deactivated successfully." : "User activated successfully.");
       await load();
     } catch (requestError) { setError(errorMessage(requestError, "Could not update account status. Please retry.")); }
     finally { setBusyUserId(null); }
@@ -90,6 +101,8 @@ export default function UsersPage() {
       <div><p className="text-sm font-semibold text-[#438B68]">ADMINISTRATION</p><h1 className="mt-1 text-2xl font-bold text-[#245C43]">Users</h1><p className="mt-1 text-sm text-[#64748B]">Create accounts, manage roles and status, and issue password resets.</p></div>
       <button onClick={openCreate} className="rounded-lg bg-[#438B68] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#367354]">{formOpen && !editing ? "Close form" : "Add user"}</button>
     </div>
+
+    {successMessage && <p role="status" className="mb-4 rounded-lg border border-[#B8D8C1] bg-[#E6F4EA] p-3 text-sm text-[#245C43]">{successMessage}</p>}
 
     {temporaryPassword && <section role="status" className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">Temporary password for {temporaryPassword.username}</h2><p className="mt-1">Share this password securely. It is shown only now, and the user must change it at next sign in.</p><code className="mt-3 inline-block rounded bg-white px-3 py-2 font-mono text-base">{temporaryPassword.password}</code></div><button onClick={() => setTemporaryPassword(null)} className="font-semibold underline">Dismiss</button></div></section>}
 

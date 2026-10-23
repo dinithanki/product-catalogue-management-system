@@ -48,8 +48,8 @@ export default function DashboardLayout() {
 
   const sidebar = (mobile = false) => (
     <div className="flex h-full flex-col bg-white">
-      <div className="flex h-16 items-center justify-between border-b border-[#DCE5DF] px-4">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <div className={`flex items-center border-b border-[#DCE5DF] ${collapsed && !mobile ? "h-24 flex-col justify-center gap-1 px-2" : "h-16 justify-between px-4"}`}>
+        <div className={`flex min-w-0 items-center gap-3 ${collapsed && !mobile ? "justify-center" : "overflow-hidden"}`}>
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#438B68] font-bold text-white">K</span>
           {(!collapsed || mobile) && <span className="whitespace-nowrap font-semibold text-[#245C43]">Keells Catalogue</span>}
         </div>
