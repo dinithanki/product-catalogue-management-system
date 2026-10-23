@@ -7,6 +7,7 @@ import ProductsPage from "./pages/ProductsPage";
 import ProductDetailsPage from "./pages/ProductDetailsPage";
 import ProductFormPage from "./pages/ProductFormPage";
 import SuppliersPage from "./pages/SuppliersPage";
+import UsersPage from "./pages/UsersPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import { useAuthStore } from "./stores/authStore";
 
@@ -28,6 +29,11 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   const isInitialized = useAuthStore((state) => state.isInitialized);
   if (!isInitialized) return <InitializationScreen />;
   return isAuthenticated ? <Navigate to="/products" replace /> : children;
+}
+
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const role = useAuthStore((state) => state.user?.role);
+  return role?.toLowerCase() === "admin" ? children : <Navigate to="/products" replace />;
 }
 
 function InitializationScreen() {
@@ -60,6 +66,7 @@ export default function App() {
       <Route path="/products/:productId" element={<ProductDetailsPage />} />
       <Route path="/products/:productId/edit" element={<ProductFormPage />} />
       <Route path="/suppliers" element={<SuppliersPage />} />
+      <Route path="/users" element={<AdminOnly><UsersPage /></AdminOnly>} />
     </Route>
     <Route path="*" element={<Navigate to="/products" replace />} />
   </Routes>;
