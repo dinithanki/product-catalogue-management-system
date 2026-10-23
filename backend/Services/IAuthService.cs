@@ -1,5 +1,5 @@
 
-using backend.DTOs.Response;
+using backend.DTOs.Responses;
 
 namespace backend.Services;
 

@@ -1,5 +1,5 @@
 ﻿
-using backend.DTOs.Response;
+using backend.DTOs.Responses;
 using backend.Models;
 using backend.Repositories;
 using backend.Services;
