@@ -71,13 +71,13 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-[#F8FAF9] text-[#24352B]">
       <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-[#DCE5DF] transition-[width] duration-200 lg:block ${collapsed ? "w-[76px]" : "w-64"}`}>{sidebar()}</aside>
       {drawerOpen && <div className="fixed inset-0 z-40 lg:hidden"><button aria-label="Close menu backdrop" className="absolute inset-0 bg-[#24352B]/20" onClick={() => setDrawerOpen(false)} /><aside id="mobile-navigation" className="absolute inset-y-0 left-0 w-72 shadow-xl">{sidebar(true)}</aside></div>}
-      <div className={`min-h-screen transition-[margin] duration-200 ${collapsed ? "lg:ml-[76px]" : "lg:ml-64"}`}>
+      <div className={`min-h-screen min-w-0 transition-[margin] duration-200 ${collapsed ? "lg:ml-[76px]" : "lg:ml-64"}`}>
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#DCE5DF] bg-white/95 px-4 backdrop-blur sm:px-6">
           <button ref={menuButtonRef} onClick={() => setDrawerOpen(true)} aria-expanded={drawerOpen} aria-controls="mobile-navigation" aria-label="Open navigation menu" className="rounded-lg border border-[#DCE5DF] px-3 py-2 text-sm text-[#245C43] lg:hidden">☰</button>
           <span className="hidden text-sm font-semibold text-[#245C43] sm:block">Product Catalogue</span>
-          <div className="ml-auto text-right"><p className="text-sm font-semibold">{user?.username ?? "User"}</p><p className="text-xs text-[#64748B]">{user?.role ?? ""}</p></div>
+          <div className="ml-auto min-w-0 max-w-[65%] text-right"><p className="truncate text-sm font-semibold">{user?.username ?? "User"}</p><p className="truncate text-xs text-[#64748B]">{user?.role ?? ""}</p></div>
         </header>
-        <main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8"><Outlet /></main>
+        <main className="mx-auto w-full max-w-[1440px] min-w-0 px-3 py-4 sm:p-6 lg:p-8"><Outlet /></main>
       </div>
     </div>
   );
