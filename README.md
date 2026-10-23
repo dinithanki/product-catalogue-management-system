@@ -54,11 +54,11 @@ keells-product-catalogue/
 - [x] Database schema and stored procedures
 - [x] JWT authentication and authorization setup
 - [x] First-login password-change enforcement
-- [ ] Complete user-management API
-- [ ] Product and supplier APIs verification
-- [ ] Currency conversion integration
-- [ ] React frontend implementation and integration
-- [ ] Complete testing and final documentation
+- [x] User-management, product and supplier APIs
+- [x] Currency conversion integration
+- [x] React frontend implementation and API integration
+- [x] Backend unit tests
+- [ ] End-to-end verification against the target SQL Server and ExchangeRate-API account
 
 ## Prerequisites
 
@@ -69,14 +69,23 @@ keells-product-catalogue/
 
 ## Configuration
 
-Configure the database connection string and JWT settings using .NET User Secrets or environment variables.
+Configure `ConnectionStrings:DefaultConnection`, `Jwt:Secret`, `Jwt:Issuer`,
+`Jwt:Audience`, and `ExchangeRateApi:ApiKey` using .NET User Secrets or
+environment variables. Configure `Cors:FrontendOrigins` for the deployed
+frontend origin.
 
 Do not commit passwords, JWT secrets, API keys, or other credentials to Git.
 
 ## Setup
 
-Detailed database, backend, and frontend setup instructions will be added as the implementation progresses.
+Apply the scripts in `database/schema`, `database/procedures`, and
+`database/seed` to the target SQL Server. Run `tools/AdminSetup` once to create
+the first administrator. Start the backend and frontend from their respective
+directories with `dotnet run` and `npm run dev`.
 
 ## Testing
 
-The authentication flow has been tested using Swagger, including login, blocking protected requests when a password change is required, and allowing access after the password is changed.
+Run `dotnet test backend.Tests/backend.Tests.csproj` for backend tests, and
+`npm run build` plus `npm run lint` from `frontend` for frontend checks. Full
+login, refresh-token, product, supplier, and currency-conversion flows should
+be verified against the configured target services before delivery.

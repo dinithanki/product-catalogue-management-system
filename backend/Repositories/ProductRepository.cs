@@ -61,12 +61,19 @@ public sealed class ProductRepository(SqlConnection connection)
             scale: 4);
         parameters.Add("@PackSize", request.PackSize.Trim(), DbType.String, size: 50);
 
-        var result = await connection.QuerySingleAsync<CreateProductResult>(
-            "dbo.usp_Products_Create",
-            parameters,
-            commandType: CommandType.StoredProcedure);
+        try
+        {
+            var result = await connection.QuerySingleAsync<CreateProductResult>(
+                "dbo.usp_Products_Create",
+                parameters,
+                commandType: CommandType.StoredProcedure);
 
-        return (result.StatusCode, result.ProductId);
+            return (result.StatusCode, result.ProductId);
+        }
+        catch (SqlException exception) when (IsDuplicateSku(exception))
+        {
+            return (5, null);
+        }
     }
 
     public async Task<int> UpdateAsync(
@@ -90,10 +97,17 @@ public sealed class ProductRepository(SqlConnection connection)
             scale: 4);
         parameters.Add("@PackSize", request.PackSize.Trim(), DbType.String, size: 50);
 
-        return await connection.QuerySingleAsync<int>(
-            "dbo.usp_Products_Update",
-            parameters,
-            commandType: CommandType.StoredProcedure);
+        try
+        {
+            return await connection.QuerySingleAsync<int>(
+                "dbo.usp_Products_Update",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+        }
+        catch (SqlException exception) when (IsDuplicateSku(exception))
+        {
+            return 5;
+        }
     }
 
     public async Task<int> SoftDeleteAsync(
@@ -117,4 +131,10 @@ public sealed class ProductRepository(SqlConnection connection)
 
         public int? ProductId { get; set; }
     }
+
+    private static bool IsDuplicateSku(SqlException exception) =>
+        (exception.Number == 2601 || exception.Number == 2627) &&
+        exception.Message.Contains(
+            "UQ_Products_SKU",
+            StringComparison.OrdinalIgnoreCase);
 }
