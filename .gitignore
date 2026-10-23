@@ -1,4 +1,4 @@
-@'
+
 **/bin/
 **/obj/
 **/node_modules/
@@ -6,10 +6,11 @@
 **/coverage/
 .vs/
 .vscode/
+
 .env
 .env.*
 !.env.example
+
 appsettings.Local.json
 *.user
 *.suo
-'@ | Set-Content .gitignore
