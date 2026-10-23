@@ -32,6 +32,8 @@ export default function SuppliersPage() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role.toLowerCase() === "admin";
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -42,6 +44,11 @@ export default function SuppliersPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [busySupplierId, setBusySupplierId] = useState<number | null>(null);
+  const filteredSuppliers = suppliers.filter((supplier) =>
+    (statusFilter === "all" || supplier.isActive === (statusFilter === "active")) &&
+    [supplier.name, supplier.country, supplier.currencyCode, supplier.contactNumber, supplier.email]
+      .some((value) => value.toLowerCase().includes(search.trim().toLowerCase())),
+  );
 
   useEffect(() => {
     if (!successMessage) return;
@@ -121,10 +128,14 @@ export default function SuppliersPage() {
       <div className="mt-5 flex justify-end"><button disabled={saving} className="rounded-lg bg-[#438B68] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Saving…" : editing ? "Save changes" : "Create supplier"}</button></div>
     </form>}
     {error && <div role="alert" className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"><span>{error}</span><button onClick={() => void load()} className="font-semibold underline">Retry</button></div>}
+    <section aria-label="Supplier filters" className="mb-4 grid gap-3 rounded-xl border border-[#DCE5DF] bg-white p-4 shadow-sm sm:grid-cols-2">
+      <label className="grid max-w-xl gap-1.5 text-xs font-semibold text-[#52645A]">Search suppliers<input className={inputClass} type="search" maxLength={254} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, country, currency, contact or email" /></label>
+      <label className="grid gap-1.5 text-xs font-semibold text-[#52645A]">Status<select className={inputClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+    </section>
     <section className="overflow-hidden rounded-xl border border-[#DCE5DF] bg-white shadow-sm">
-      <div className="border-b border-[#DCE5DF] px-4 py-3 text-sm text-[#64748B]">{suppliers.length} suppliers</div>
+      <div className="border-b border-[#DCE5DF] px-4 py-3 text-sm text-[#64748B]">{filteredSuppliers.length} suppliers</div>
       <div className="overflow-x-auto"><table className="w-full min-w-[880px] text-left text-sm"><thead className="bg-[#F2F7F3]"><tr>{["Supplier", "Country", "Currency", "Contact", "Email", "Status", ...(isAdmin ? ["Actions"] : [])].map((label) => <th key={label} scope="col" className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">{label}</th>)}</tr></thead>
-        <tbody className="divide-y divide-[#EDF1EE]">{loading ? <tr><td colSpan={isAdmin ? 7 : 6} className="p-12 text-center text-[#64748B]">Loading suppliers…</td></tr> : suppliers.length === 0 ? <tr><td colSpan={isAdmin ? 7 : 6} className="p-12 text-center text-[#64748B]">No suppliers found.</td></tr> : suppliers.map((supplier) => <tr key={supplier.supplierId}>
+        <tbody className="divide-y divide-[#EDF1EE]">{loading ? <tr><td colSpan={isAdmin ? 7 : 6} className="p-12 text-center text-[#64748B]">Loading suppliers…</td></tr> : filteredSuppliers.length === 0 ? <tr><td colSpan={isAdmin ? 7 : 6} className="p-12 text-center text-[#64748B]">{search || statusFilter !== "all" ? "No suppliers match these filters." : "No suppliers found."}</td></tr> : filteredSuppliers.map((supplier) => <tr key={supplier.supplierId}>
           <td className="px-4 py-4 font-semibold text-[#24352B]">{supplier.name}</td><td className="px-4 py-4">{supplier.country}</td><td className="px-4 py-4">{supplier.currencyCode}</td><td className="px-4 py-4">{supplier.contactNumber}</td><td className="px-4 py-4">{supplier.email}</td>
           <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${supplier.isActive ? "bg-[#E6F4EA] text-[#245C43]" : "bg-slate-100 text-slate-600"}`}>{supplier.isActive ? "Active" : "Inactive"}</span></td>
           {isAdmin && <td className="px-4 py-4"><div className="flex gap-3"><button onClick={() => startEdit(supplier)} className="font-semibold text-[#438B68] hover:underline">Edit</button><button disabled={busySupplierId === supplier.supplierId} onClick={() => void toggleStatus(supplier)} className="font-semibold text-[#52645A] hover:underline disabled:opacity-50">{busySupplierId === supplier.supplierId ? "Saving…" : supplier.isActive ? "Deactivate" : "Reactivate"}</button></div></td>}
