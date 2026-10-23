@@ -40,10 +40,23 @@ public sealed class UserRepository(SqlConnection connection)
         parameters.Add("@Username", username, DbType.String, size: 50);
         parameters.Add("@Role", role, DbType.String, size: 10);
 
-        return await connection.QuerySingleAsync<int>(
-            "dbo.usp_Users_Update",
-            parameters,
-            commandType: CommandType.StoredProcedure);
+        try
+        {
+            return await connection.QuerySingleAsync<int>(
+                "dbo.usp_Users_Update",
+                parameters,
+                commandType: CommandType.StoredProcedure);
+        }
+        catch (SqlException exception) when (
+            (exception.Number == 2601 || exception.Number == 2627) &&
+            exception.Message.Contains(
+                "UQ_Users_Username",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            // A concurrent update can still win after any pre-check, so map
+            // the database constraint violation to the API conflict status.
+            return 6;
+        }
     }
 
     public async Task<int> ResetUserPasswordAsync(

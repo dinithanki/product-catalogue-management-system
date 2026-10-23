@@ -1,15 +1,18 @@
-
 using System.Security.Claims;
 using backend.DTOs.Requests;
 using backend.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService authService, IConfiguration configuration) : ControllerBase
+public sealed class AuthController(
+    IAuthService authService,
+    IConfiguration configuration,
+    IWebHostEnvironment environment) : ControllerBase
 {
     private const string RefreshCookieName = "keells-refresh";
     private const string RefreshCookiePath = "/api/auth";
@@ -19,9 +22,13 @@ public sealed class AuthController(IAuthService authService, IConfiguration conf
     public async Task<IActionResult> Login(
         [FromBody] LoginRequest request)
     {
-        if (!HasAllowedOrigin()) return Forbid();
+        if (!HasAllowedOrigin())
+            return Forbid();
 
-        var result = await authService.LoginAsync(request.Username, request.Password, SetRefreshCookie);
+        var result = await authService.LoginAsync(
+            request.Username,
+            request.Password,
+            SetRefreshCookie);
 
         if (result is null)
         {
@@ -38,9 +45,14 @@ public sealed class AuthController(IAuthService authService, IConfiguration conf
     [AllowAnonymous]
     public async Task<IActionResult> Refresh()
     {
-        if (!HasAllowedOrigin()) return Forbid();
+        if (!HasAllowedOrigin())
+            return Forbid();
+
         var refreshToken = Request.Cookies[RefreshCookieName];
-        var result = await authService.RefreshTokenAsync(refreshToken ?? string.Empty, SetRefreshCookie);
+
+        var result = await authService.RefreshTokenAsync(
+            refreshToken ?? string.Empty,
+            SetRefreshCookie);
 
         if (result is null)
         {
@@ -57,9 +69,14 @@ public sealed class AuthController(IAuthService authService, IConfiguration conf
     [AllowAnonymous]
     public async Task<IActionResult> Logout()
     {
-        if (!HasAllowedOrigin()) return Forbid();
+        if (!HasAllowedOrigin())
+            return Forbid();
+
         var refreshToken = Request.Cookies[RefreshCookieName];
-        var revoked = await authService.LogoutAsync(refreshToken ?? string.Empty);
+
+        var revoked = await authService.LogoutAsync(
+            refreshToken ?? string.Empty);
+
         ExpireRefreshCookie();
 
         if (!revoked)
@@ -76,33 +93,67 @@ public sealed class AuthController(IAuthService authService, IConfiguration conf
         });
     }
 
-    private void SetRefreshCookie(string token, DateTime expiresAtUtc)
+    private void SetRefreshCookie(
+        string token,
+        DateTime expiresAtUtc)
     {
-        Response.Cookies.Append(RefreshCookieName, token, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = Request.IsHttps,
-            SameSite = SameSiteMode.Lax,
-            Path = RefreshCookiePath,
-            Expires = new DateTimeOffset(DateTime.SpecifyKind(expiresAtUtc, DateTimeKind.Utc)),
-            IsEssential = true
-        });
+        Response.Cookies.Append(
+            RefreshCookieName,
+            token,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Path = RefreshCookiePath,
+                Expires = new DateTimeOffset(
+                    DateTime.SpecifyKind(
+                        expiresAtUtc,
+                        DateTimeKind.Utc)),
+                IsEssential = true
+            });
     }
 
-    private void ExpireRefreshCookie() => Response.Cookies.Delete(RefreshCookieName, new CookieOptions
+    private void ExpireRefreshCookie()
     {
-        HttpOnly = true,
-        Secure = Request.IsHttps,
-        SameSite = SameSiteMode.Lax,
-        Path = RefreshCookiePath
-    });
+        Response.Cookies.Delete(
+            RefreshCookieName,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Path = RefreshCookiePath
+            });
+    }
 
     private bool HasAllowedOrigin()
     {
-        if (!Request.Headers.TryGetValue("Origin", out var origin)) return true;
-        var allowedOrigins = configuration.GetSection("Cors:FrontendOrigins").Get<string[]>()
+        // Allow requests without an Origin header.
+        if (!Request.Headers.TryGetValue("Origin", out var origin))
+            return true;
+
+        var allowedOrigins = configuration
+            .GetSection("Cors:FrontendOrigins")
+            .Get<string[]>()
             ?? ["http://localhost:5173"];
-        return allowedOrigins.Contains(origin.ToString(), StringComparer.OrdinalIgnoreCase);
+
+        // Allow configured frontend origins.
+        if (allowedOrigins.Contains(
+            origin.ToString(),
+            StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Allow Swagger's own origin in Development only.
+        var swaggerOrigin = $"{Request.Scheme}://{Request.Host}";
+
+        return environment.IsDevelopment()
+            && string.Equals(
+                origin.ToString(),
+                swaggerOrigin,
+                StringComparison.OrdinalIgnoreCase);
     }
 
     [HttpPost("change-password")]
@@ -139,7 +190,10 @@ public sealed class AuthController(IAuthService authService, IConfiguration conf
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
         }
     }
 }
