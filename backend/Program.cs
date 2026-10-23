@@ -12,6 +12,18 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// CORS: allow the React development frontend.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 // Controllers and Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -124,6 +136,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Global exception handling
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Swagger is available in development
@@ -134,6 +147,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// CORS must run before authentication and authorization.
+app.UseCors("FrontendPolicy");
 
 // Authenticate the request and populate HttpContext.User.
 app.UseAuthentication();
