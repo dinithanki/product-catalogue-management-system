@@ -2,6 +2,21 @@
 
 A full-stack supplier product catalogue developed as part of the Keells Software Engineer Technical Assignment.
 
+## Deployment and Architecture
+
+The system is deployed as a cloud-hosted, three-tier application. The frontend, backend API, and database are hosted separately to keep their responsibilities independent and simplify deployment and maintenance.
+
+| Component | Technology | Hosting platform |
+|---|---|---|
+| Frontend | React, TypeScript | Vercel |
+| Backend API | ASP.NET Core Web API | Render (Docker container) |
+| Database | Microsoft SQL Server | MonsterASP |
+| Containerization | Docker | Render |
+
+The React frontend provides the product catalogue interface and communicates with the ASP.NET Core API over HTTP. The API handles business logic, request validation, authentication, and database operations, connecting to SQL Server through its configured connection string.
+
+Deployment configuration is supplied through environment variables and each hosting platform's settings. Configure the backend's database connection string, JWT authentication settings, and other required application settings in Render; configure the frontend API base URL to point to the deployed backend. Database credentials, JWT secrets, and other sensitive values must never be committed to source control.
+
 ## Live Demo
 
 - **Frontend:** [Product Catalogue](https://product-catalogue-management-system-three.vercel.app/products)
