@@ -2,6 +2,11 @@
 
 A full-stack supplier product catalogue developed as part of the Keells Software Engineer Technical Assignment.
 
+## Live Demo
+
+- **Frontend:** [Product Catalogue](https://product-catalogue-management-system-three.vercel.app/products)
+- **API documentation:** [Swagger UI](https://product-catalogue-management-system-q8xd.onrender.com/swagger/index.html)
+
 ## Technology Stack
 
 - **Frontend:** React with TypeScript
@@ -28,6 +33,7 @@ keells-product-catalogue/
 
 ## Documentation
 
+- [Local setup guide](docs/local-setup.md) — step-by-step instructions to configure secrets, create the database and administrator, and run the application locally.
 - [Architecture](docs/architecture.md) — application layers, request flow, authentication, and currency conversion.
 - [Database design](docs/database-design.md) — schema, constraints, indexes, and stored procedures.
 
