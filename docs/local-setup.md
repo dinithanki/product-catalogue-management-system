@@ -9,7 +9,7 @@ Install these before starting:
 - Git, to clone the repository.
 - The .NET 10 SDK. The backend targets `net10.0`.
 - Node.js 20.19 or newer (or Node.js 22.12 or newer) and npm, for the React frontend dependencies in the lockfile.
-- Microsoft SQL Server. SQL Server Express or LocalDB is suitable for a local development database. You can use SQL Server Management Studio (SSMS) to create the database and run the checked-in `.sql` files.
+- Microsoft SQL Server Database Engine. SQL Server Express or LocalDB is suitable for a local development database. SSMS is a separate management app used to connect to the Database Engine, create the database, and run the checked-in `.sql` files. See Microsoft's [SSMS installation guide](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms) for the current installer.
 - An ExchangeRate-API account and API key, for product price conversion to LKR.
 
 Open a new PowerShell window after installing the tools and check that they are available:
@@ -34,16 +34,25 @@ cd keells-product-catalogue
 
 Replace `YOUR_REPOSITORY_URL` with the repository's Git URL. If you already opened this project in your IDE, open a terminal at the folder containing `README.md` and continue there.
 
-## 3. Create the local SQL Server database
+## 3. Install, connect to, and set up SQL Server
 
-Start your SQL Server instance and connect to it in SSMS. Create a database named `KeellsProductCatalogue`:
+You need both a running **SQL Server Database Engine** and a client such as **SQL Server Management Studio (SSMS)**. Installing SSMS alone does not install the database engine. If you do not have a local SQL Server instance yet, install SQL Server Express or LocalDB, then install SSMS using the [Microsoft SSMS installation guide](https://learn.microsoft.com/en-us/ssms/download-sql-server-management-studio-ssms).
+
+Open SSMS and connect to your local Database Engine:
+
+1. In the **Connect to Server** window, set **Server type** to `Database Engine`.
+2. Enter the server name for the instance you installed. Common local values are `localhost` for a default SQL Server instance, `localhost\SQLEXPRESS` for SQL Server Express, and `(localdb)\MSSQLLocalDB` for LocalDB. Use the same instance name later in the backend connection string.
+3. Choose **Windows Authentication** if that is how you installed/configured the local instance, then select **Connect**. If you configured SQL Server Authentication, select **SQL Server Authentication** and use the SQL login you created.
+4. In Object Explorer, confirm that the connection opened. If it fails, check that the SQL Server service/instance is installed and running, and that the server name and authentication mode match your installation.
+
+Now create the application database on that connected instance. In SSMS, select **New Query**, run the following, and confirm that it succeeds:
 
 ```sql
 CREATE DATABASE KeellsProductCatalogue;
 GO
 ```
 
-In SSMS, open and execute these files **in this order**, connected to the same SQL Server instance. The database must already exist because the scripts select it with `USE KeellsProductCatalogue`.
+In SSMS, use **File → Open → File** to open each `.sql` file from the repository, then select **Execute** (or press F5) with **the same server connection**. The scripts select `KeellsProductCatalogue` themselves. Run them in this order:
 
 1. `database/schema/001_create_tables.sql`
 2. `database/procedures/001_authentication.sql`
@@ -55,7 +64,7 @@ In SSMS, open and execute these files **in this order**, connected to the same S
 8. `database/procedures/007_change_password.sql`
 9. `database/seed/001_seed_data.sql`
 
-The last script adds sample suppliers and products. It is safe to run again; it skips rows that already exist. The database will initially have no users. You will create the first administrator in step 6.
+The last script adds sample suppliers and products. It is safe to run again; it skips rows that already exist. In Object Explorer, refresh **Databases** and expand `KeellsProductCatalogue` to confirm the database exists. Under **Tables**, you should see `Users`, `Suppliers`, `Products`, and `RefreshTokens`. The database will initially have no users. You will create the first administrator in step 6.
 
 ## 4. Configure backend secrets
 
@@ -64,13 +73,13 @@ The backend reads local configuration from .NET User Secrets, which keeps creden
 First, set the SQL Server connection string. Choose the example matching your SQL Server setup and replace the value if your instance or authentication differs:
 
 ```powershell
-# Default SQL Server instance using Windows Authentication
+# Default SQL Server instance using Windows Authentication; use this if you connected to localhost in SSMS
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=KeellsProductCatalogue;Trusted_Connection=True;TrustServerCertificate=True;" --project backend
 
-# SQL Server Express example (use this instead if your instance is SQLEXPRESS)
+# SQL Server Express example (use this instead if you connected to localhost\SQLEXPRESS)
 # dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=.\SQLEXPRESS;Database=KeellsProductCatalogue;Trusted_Connection=True;TrustServerCertificate=True;" --project backend
 
-# LocalDB example (use this instead if you installed LocalDB)
+# LocalDB example (use this instead if you connected to (localdb)\MSSQLLocalDB)
 # dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=(localdb)\MSSQLLocalDB;Database=KeellsProductCatalogue;Trusted_Connection=True;TrustServerCertificate=True;" --project backend
 ```
 
@@ -91,7 +100,7 @@ dotnet user-secrets set "Jwt:Issuer" "KeellsProductCatalogue" --project backend
 dotnet user-secrets set "Jwt:Audience" "KeellsProductCatalogueClient" --project backend
 ```
 
-Get the ExchangeRate-API key from your ExchangeRate-API account dashboard and save it locally:
+Get your own API key from [ExchangeRate-API](https://www.exchangerate-api.com/): enter your email on the site to request a free key, confirm your email, and copy the enabled key from your account/dashboard. Then save it to backend User Secrets:
 
 ```powershell
 dotnet user-secrets set "ExchangeRateApi:ApiKey" "PASTE_YOUR_OWN_API_KEY_HERE" --project backend
