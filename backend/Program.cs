@@ -138,16 +138,14 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // Global exception handling
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Swagger is available in development
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+
 
 app.UseHttpsRedirection();
 
