@@ -103,8 +103,13 @@ public sealed class AuthController(
             new CookieOptions
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Lax,
+                // The deployed frontend and API are on different sites
+                // (Vercel and Render), so the refresh cookie must be sent
+                // on cross-site requests. SameSite=None requires Secure.
+                Secure = !environment.IsDevelopment() || Request.IsHttps,
+                SameSite = environment.IsDevelopment()
+                    ? SameSiteMode.Lax
+                    : SameSiteMode.None,
                 Path = RefreshCookiePath,
                 Expires = new DateTimeOffset(
                     DateTime.SpecifyKind(
@@ -121,8 +126,10 @@ public sealed class AuthController(
             new CookieOptions
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Lax,
+                Secure = !environment.IsDevelopment() || Request.IsHttps,
+                SameSite = environment.IsDevelopment()
+                    ? SameSiteMode.Lax
+                    : SameSiteMode.None,
                 Path = RefreshCookiePath
             });
     }
